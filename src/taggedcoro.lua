@@ -7,7 +7,7 @@ local status = coroutine.status
 local running = coroutine.running
 local isyieldable = coroutine.isyieldable
 
-local coros = setmetatable({}, { __mode = "v" })
+local coros = setmetatable({}, { __mode = "k" })
 local tagset = setmetatable({}, { __mode = "k" })
 
 local M = {}
@@ -16,8 +16,9 @@ local DEFAULT_TAG = "coroutine"
 
 function M.create(f, tag)
   tag = tag or DEFAULT_TAG
-  local co = { tag = tag, co = create(f), stacked = false }
-  coros[co.co] = co
+  local co = create(f)
+  local meta = { tag = tag, stacked = false }
+  coros[co] = meta
   return co
 end
 
@@ -27,37 +28,36 @@ function M.yield(tag, ...)
 end
 
 function M.resume(co, ...)
-  if co.stacked then return error("cannot resume stacked coroutine") end
-  tagset[co.tag] = (tagset[co.tag] or 0) + 1
-  local res = { resume(co.co, ...) }
-  tagset[co.tag] = tagset[co.tag] - 1
+  local meta = coros[co]
+  if meta.stacked then return error("cannot resume stacked coroutine") end
+  tagset[meta.tag] = (tagset[meta.tag] or 0) + 1
+  local res = { resume(co, ...) }
+  tagset[meta.tag] = tagset[meta.tag] - 1
   if not res[1] then return false, res[2] end
-  if status(co.co) == "dead" then
+  if status(co) == "dead" then
     return table.unpack(res)
   end
   local tag = res[2] or DEFAULT_TAG
-  if co.tag == tag then
+  if meta.tag == tag then
     return true, table.unpack(res, 3)
   else
     if not isyieldable() then return error("no coroutine for tag " .. tostring(tag)) end
-    co.stacked = true
+    meta.stacked = true
     local res = { yield(tag, table.unpack(res, 3)) }
-    co.stacked = false
+    meta.stacked = false
     return M.resume(co, table.unpack(res))
   end
 end
 
 function M.status(co)
-  if co.stacked then
+  if coros[co].stacked then
     return "stacked"
   else
-    return status(co.co)
+    return status(co)
   end
 end
 
-function M.running()
-  return coros[running()]
-end
+M.running = running
 
 function M.isyieldable(tag)
   tag = tag or DEFAULT_TAG
