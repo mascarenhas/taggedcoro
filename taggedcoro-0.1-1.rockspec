@@ -23,10 +23,10 @@ build = {
    type = "builtin",
    modules = {
      taggedcoro = "src/taggedcoro.lua",
-     iterator = "contrib/iterator.lua",
-     stm = "contrib/stm.lua",
-     exception = "contrib/exception.lua",
-     nlr = "contrib/nlr.lua",
+     ["taggedcoro.iterator"] = "contrib/iterator.lua",
+     ["taggedcoro.stm"] = "contrib/stm.lua",
+     ["taggedcoro.exception"] = "contrib/exception.lua",
+     ["taggedcoro.nlr"] = "contrib/nlr.lua",
    },
    copy_directories = {}
 }

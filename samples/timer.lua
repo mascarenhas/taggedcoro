@@ -1,9 +1,9 @@
 
 local thread = require "thread"
-local iterator = require "iterator"
+local iterator = require "taggedcoro.iterator"
 local cosmo = require "cosmo"
-local nlr = require "nlr"
-local ex = require "exception"
+local nlr = require "taggedcoro.nlr"
+local ex = require "taggedcoro.exception"
 
 local template = cosmo.compile("$message[[$msg]]")
 

@@ -1,4 +1,4 @@
-local stm = require "stm"
+local stm = require "taggedcoro.stm"
 local thread = require "thread"
 
 stm.var("balance", 100)
