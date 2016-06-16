@@ -24,6 +24,7 @@ end
 
 function M.yield(tag, ...)
   tag = tag or DEFAULT_TAG
+  if not M.isyieldable(tag) then return error("no coroutine for tag " .. tostring(tag)) end
   return yield(tag, ...)
 end
 
@@ -42,7 +43,6 @@ local function resumek(co, meta, ok, tag, ...)
   if meta.tag == tag then
     return true, ...
   else
-    if not isyieldable() then return error("no coroutine for tag " .. tostring(tag)) end
     meta.stacked = true
     return resumekk(co, meta, yield(tag, ...))
   end
