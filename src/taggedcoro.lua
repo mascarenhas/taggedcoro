@@ -52,6 +52,7 @@ function M.resume(co, ...)
   local meta = coros[co]
   if meta.stacked then return error("cannot resume stacked coroutine") end
   tagset[meta.tag] = (tagset[meta.tag] or 0) + 1
+  meta.caller = M.running()
   return resumek(co, meta, resume(co, ...))
 end
 
@@ -61,6 +62,14 @@ function M.status(co)
   else
     return status(co)
   end
+end
+
+function M.caller(co)
+  return coros[co] and coros[co].caller
+end
+
+function M.tag(co)
+  return coros[co].tag
 end
 
 M.running = running
