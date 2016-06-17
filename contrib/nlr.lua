@@ -1,14 +1,14 @@
-local coroutine = require "taggedcoro"
+local coroutine = require("taggedcoro").fortag("nlr")
 
-local nlr = { TAG = "return" }
+local nlr = {}
 
 function nlr.run(blk)
-  local co = coroutine.wrap(blk, nlr.TAG)
+  local co = coroutine.wrap(blk)
   return co()
 end
 
 function nlr.ret(...)
-  coroutine.yield(nlr.TAG, ...)
+  coroutine.yield(...)
 end
 
 return nlr

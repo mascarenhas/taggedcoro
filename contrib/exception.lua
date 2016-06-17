@@ -1,6 +1,6 @@
-local coroutine = require "taggedcoro"
+local coroutine = require("taggedcoro").fortag("exception")
 
-local ex = { TAG = "exception" }
+local ex = {}
 
 local function trycatchk(cblk, co, dead, ...)
   if dead then
@@ -20,12 +20,12 @@ end
 function ex.trycatch(tblk, cblk)
   local co = coroutine.wrap(function ()
     return true, tblk()
-  end, ex.TAG)
+  end)
   return trycatchk(cblk, co, co())
 end
 
 function ex.throw(e)
-  return coroutine.yield(ex.TAG, false, coroutine.running(), e)
+  return coroutine.yield(false, coroutine.running(), e)
 end
 
 function ex.traceback(co, msg)

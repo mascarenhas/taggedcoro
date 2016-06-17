@@ -16,10 +16,10 @@ local MARK = {}
 
 local DEFAULT_TAG = "coroutine"
 
-function M.create(f, tag)
-  tag = tag or DEFAULT_TAG
+function M.create(f, tagset)
+  tagset = tagset or { [DEFAULT_TAG] = true }
   local co = create(f)
-  local meta = { tag = tag, stacked = false }
+  local meta = { tagset = tagset, stacked = false, lasttag = nil }
   coros[co] = meta
   return co
 end
@@ -36,15 +36,19 @@ local function resumekk(co, meta, ...)
 end
 
 local function resumek(co, meta, ok, mark, tag, ...)
-  tagset[meta.tag] = tagset[meta.tag] - 1
+  for tag, _ in pairs(meta.tagset) do
+    tagset[tag] = tagset[tag] - 1
+  end
   if not ok then return false, mark end
   if status(co) == "dead" then
+    meta.lasttag = "return"
     return ok, mark, tag, ...
   end
-  if mark ~= MARK or meta.tag ~= tag then
+  if mark ~= MARK or not meta.tagset[tag] then
     meta.stacked = true
     return resumekk(co, meta, yield(mark, tag, ...))
   end
+  meta.lasttag = tag
   return true, ...
 end
 
@@ -52,7 +56,9 @@ function M.resume(co, ...)
   local meta = coros[co]
   if meta then
     if meta.stacked then return error("cannot resume stacked coroutine") end
-    tagset[meta.tag] = (tagset[meta.tag] or 0) + 1
+    for tag, _ in pairs(meta.tagset) do
+      tagset[tag] = (tagset[tag] or 0) + 1
+    end
     meta.caller = M.running()
     return resumek(co, meta, resume(co, ...))
   else
@@ -68,12 +74,30 @@ function M.status(co)
   end
 end
 
+function M.lasttag(co)
+  return coros[co].lasttag
+end
+
 function M.caller(co)
   return coros[co] and coros[co].caller
 end
 
-function M.tag(co)
-  return coros[co].tag
+function M.tagset(co)
+  return coros[co].tagset
+end
+
+function M.fortag(tag)
+  return {
+    running = M.running,
+    create = function (f) return M.create(f, { [tag] = true }) end,
+    yield = function (...)
+      return M.yield(tag, ...)
+    end,
+    wrap = function (f) return M.wrap(f, {  [tag] = true }) end,
+    isyieldable = function () return M.isyieldable(tag) end,
+    status = M.status,
+    resume = M.resume
+  }
 end
 
 M.running = running
@@ -91,12 +115,12 @@ local function wrapk(ok, err, ...)
   end
 end
 
-function M.wrap(f, tag)
-  tag = tag or DEFAULT_TAG
-  local co = M.create(f, tag)
+function M.wrap(f, tagset)
+  tagset = tagset or { [DEFAULT_TAG] = true }
+  local co = M.create(f, tagset)
   return function (...)
            return wrapk(M.resume(co, ...))
-         end
+         end, co
 end
 
 return M
