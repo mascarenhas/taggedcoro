@@ -91,12 +91,26 @@ local function wrapk(ok, err, ...)
   end
 end
 
+function M.fortag(tag)
+  return {
+    running = M.running,
+    create = function (f) return M.create(f, tag) end,
+    yield = function (...)
+      return M.yield(tag, ...)
+    end,
+    wrap = function (f) return M.wrap(f, tag) end,
+    isyieldable = function () return M.isyieldable(tag) end,
+    status = M.status,
+    resume = M.resume
+  }
+end
+
 function M.wrap(f, tag)
   tag = tag or DEFAULT_TAG
   local co = M.create(f, tag)
   return function (...)
            return wrapk(M.resume(co, ...))
-         end
+         end, co
 end
 
 return M

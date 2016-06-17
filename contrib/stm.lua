@@ -1,7 +1,12 @@
-local coroutine = require "taggedcoro"
+local coroutine = require "coroutine"
+local ok, taggedcoro = pcall(require, "taggedcoro")
+if ok then
+  coroutine = taggedcoro.fortag("stm")
+end
+
 local thread = require "thread"
 
-local stm = { TAG = "stm" }
+local stm = {}
 
 local db = {}
 
@@ -13,13 +18,13 @@ function stm.var(name, val)
 end
 
 function stm.transaction(blk)
-  if coroutine.isyieldable(stm.TAG) then
+  if coroutine.isyieldable() then
     return blk()
   end
   local co = coroutine.wrap(function ()
     blk()
     return "commit"
-  end, stm.TAG)
+  end)
   local tvars = {}
   local request, name, val = co()
   while true do
@@ -75,19 +80,19 @@ function stm.transaction(blk)
 end
 
 function stm.get(name)
-  return coroutine.yield(stm.TAG, "get", name)
+  return coroutine.yield("get", name)
 end
 
 function stm.set(name, val)
-  return coroutine.yield(stm.TAG, "set", name, val)
+  return coroutine.yield("set", name, val)
 end
 
 function stm.retry()
-  return coroutine.yield(stm.TAG, "retry")
+  return coroutine.yield("retry")
 end
 
 function stm.rollback()
-  return coroutine.yield(stm.TAG, "rollback")
+  return coroutine.yield("rollback")
 end
 
 return stm

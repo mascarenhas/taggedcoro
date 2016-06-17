@@ -1,16 +1,4 @@
-local taggedcoro = require "taggedcoro"
-
-local coroutine = {
-  running = taggedcoro.running,
-  create = taggedcoro.create,
-  yield = function (...)
-    return taggedcoro.yield(nil, ...)
-  end,
-  wrap = taggedcoro.wrap,
-  isyieldable = taggedcoro.isyieldable,
-  status = taggedcoro.status,
-  resume = taggedcoro.resume
-}
+local taggedcoro = require("taggedcoro").fortag("coroutine")
 
 local debug = require "debug"
 

@@ -1,14 +1,18 @@
 
-local coroutine = require "taggedcoro"
+local coroutine = require "coroutine"
+local ok, taggedcoro = pcall(require, "taggedcoro")
+if ok then
+  coroutine = taggedcoro.fortag("iterator")
+end
 
-local iterator = { TAG = "iterator" }
+local iterator = {}
 
 function iterator.make(f)
-  return coroutine.wrap(f, iterator.TAG)
+  return coroutine.wrap(f)
 end
 
 function iterator.produce(...)
-  return coroutine.yield(iterator.TAG, ...)
+  return coroutine.yield(...)
 end
 
 return iterator
