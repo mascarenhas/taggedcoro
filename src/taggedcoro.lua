@@ -80,7 +80,7 @@ M.running = running
 
 function M.isyieldable(tag)
   tag = tag or DEFAULT_TAG
-  return tagset[tag] and (tagset[tag] > 0)
+  return isyieldable() and tagset[tag] and (tagset[tag] > 0)
 end
 
 local function wrapk(ok, err, ...)
