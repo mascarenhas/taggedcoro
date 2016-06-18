@@ -16,7 +16,7 @@ local MARK = {}
 
 local DEFAULT_TAG = "coroutine"
 
-function M.create(f, tag)
+function M.create(tag, f)
   tag = tag or DEFAULT_TAG
   local co = create(f)
   local meta = { tag = tag, stacked = false }
@@ -35,17 +35,18 @@ local function resumekk(co, meta, ...)
   return M.resume(co, ...)
 end
 
-local function resumek(co, meta, ok, mark, tag, ...)
+local function resumek(co, meta, ok, ...)
   tagset[meta.tag] = tagset[meta.tag] - 1
-  if not ok then return false, mark end
+  if not ok then return false, ... end
   if status(co) == "dead" then
-    return ok, mark, tag, ...
+    return ok, ...
   end
+  local mark, tag = ...
   if mark ~= MARK or meta.tag ~= tag then
     meta.stacked = true
-    return resumekk(co, meta, yield(mark, tag, ...))
+    return resumekk(co, meta, yield(...))
   end
-  return true, ...
+  return ok, select(3, ...)
 end
 
 function M.resume(co, ...)
@@ -83,34 +84,34 @@ function M.isyieldable(tag)
   return isyieldable() and tagset[tag] and (tagset[tag] > 0)
 end
 
-local function wrapk(ok, err, ...)
-  if ok then
-    return err, ...
-  else
-    return error(err)
-  end
-end
-
 function M.fortag(tag)
   return {
     running = M.running,
-    create = function (f) return M.create(f, tag) end,
+    create = function (f) return M.create(tag, f) end,
     yield = function (...)
       return M.yield(tag, ...)
     end,
-    wrap = function (f) return M.wrap(f, tag) end,
+    wrap = function (f) return M.wrap(tag, f) end,
     isyieldable = function () return M.isyieldable(tag) end,
     status = M.status,
     resume = M.resume
   }
 end
 
-function M.wrap(f, tag)
+local function wrapk(ok, ...)
+  if ok then
+    return ...
+  else
+    return error((...))
+  end
+end
+
+function M.wrap(tag, f)
   tag = tag or DEFAULT_TAG
-  local co = M.create(f, tag)
-  return function (...)
-           return wrapk(M.resume(co, ...))
-         end, co
+  return debug.setmetatable(M.create(tag, f),
+                            { __call = function (co, ...)
+                                         return wrapk(M.resume(co, ...))
+                                       end })
 end
 
 return M
