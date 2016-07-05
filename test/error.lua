@@ -25,11 +25,8 @@ print("main", coroutine.running())
 --local ok, err = coroutine.resume(cotwo)
 --print(coroutine.traceback(cotwo, err))
 
-local ok, err = pcall(coroutine.call, cotwo)
-print(ok, err)
-print(coroutine.traceback(cotwo, err))
 
---xpcall(ctwo, function(msg)
---  print(coroutine.traceback(msg))
---  return msg
---end)
+xpcall(ctwo, function(msg)
+  print(coroutine.traceback(msg))
+  return msg
+end)

@@ -44,119 +44,7 @@ static lua_State *getco (lua_State *L) {
   return co;
 }
 
-static int moveyielded(lua_State *L, lua_State *co) {
-  int nres = lua_gettop(co);
-  if (!lua_checkstack(L, nres + 1)) {
-    lua_pop(co, nres);  /* remove results anyway */
-    lua_pushboolean(L, 0);
-    lua_pushliteral(L, "too many results to resume");
-    return 2;  /* return false + error message */
-  }
-  lua_pushboolean(L, 1);
-  lua_xmove(co, L, nres);  /* move yielded values */
-  return nres + 1; /* return true + yielded values */
-}
-
-static int auxresumek(lua_State *L, int status, lua_KContext ctx) {
-  lua_State *co = (lua_State*)ctx;
-  int narg;
-  if(lua_gettop(L) > 3) {
-    narg = 2;
-    lua_settop(co, 0);
-    lua_xmove(L, co, 2);
-  } else {
-    narg = status ? lua_gettop(co) : lua_gettop(co)-1;
-  }
-  lua_pushnil(L);
-  lua_rawseti(L, 1, 2); /* coroset[co].stacked = nil */
-  status = lua_resume(co, L, narg);
-  if (status == LUA_OK) {
-    return moveyielded(L, co);
-  } else if(status == LUA_YIELD) {
-    lua_xmove(co, L, 2); /* move tag and yielder */
-    /* stack: coroset[co], co, tag, ytag, yielder */
-    if(lua_compare(L, -3, -2, LUA_OPEQ)) { /* yield was for me */
-      lua_State *yco = lua_tothread(L, -1);
-      lua_rawseti(L, 1, 4); /* set new coroset[co].yielder */
-      return moveyielded(L, yco);
-    } else if(lua_isyieldable(L)) { /* pass it along */
-        lua_pushboolean(L, 1);
-        lua_rawseti(L, 1, 2); /* coroset[co].stacked = true */
-        return lua_yieldk(L, 2, (lua_KContext)co, auxresumek);
-    } else { /* end of the line */
-      lua_settop(co, 0); /* clear coroutine stack */
-      /* return code for trampoline */
-      return -1;
-    }
-  } else {
-    if(lua_rawgeti(L, 1, 4) == LUA_TNIL) { /* error has a source? */
-      lua_pushvalue(L, 2);
-      lua_rawseti(L, 1, 4); /* co is the source */
-    }
-    lua_pop(L, 1); /* pop source */
-    lua_pushboolean(L, 0);
-    lua_xmove(co, L, 1);  /* move error message */
-    return 2;  /* false + error message */
-  }
-}
-
-static int auxresume (lua_State *L, lua_State *co, lua_State *yco, int status, int narg) {
-  /* stack: coroset[co], co, <args> */
-  if (!lua_checkstack(yco, narg)) {
-    lua_pushboolean(L, 0);
-    lua_pushliteral(L, "too many arguments to resume");
-    return 2;  /* return false + error message */
-  }
-  if (lua_status(co) == LUA_OK && lua_gettop(co) == 0) {
-    lua_pushboolean(L, 0);
-    lua_pushliteral(L, "cannot resume dead coroutine");
-    return 2;  /* return false + error message */
-  }
-  if(lua_rawgeti(L, 1, 2) != LUA_TNIL) { /* coroset[co].stacked? */
-    lua_pushboolean(L, 0);
-    lua_pushliteral(L, "cannot resume stacked coroutine");
-    return 2;  /* return false + error message */
-  } else lua_pop(L, 1);
-  lua_xmove(L, yco, narg); /* arguments go to straight to yielder */
-  lua_pushthread(L);
-  lua_rawseti(L, 1, 3); /* coroset[co].parent = <running coro> */
-  lua_rawgeti(L, 1, 1); /* push tag */
-  /* stack: coroset[co], co, tag */
-  int r = auxresumek(L, status, (lua_KContext)co);
-  while(r == -1) { /* trampoline */
-    lua_pushlightuserdata(co, &getco);
-    if(lua_pushthread(L)) {
-      lua_pushfstring(co, "tag %s not found", lua_tostring(L, 3));
-    } else {
-      lua_pushliteral(co, "attempt to yield across a C-call boundary");
-    }
-    lua_pop(L, 3);
-    r = auxresumek(L, LUA_YIELD, (lua_KContext)co);
-  }
-  return r;
-}
-
-static int taggedcoro_coresume (lua_State *L) {
-  lua_State *co = getco(L);
-  lua_pushvalue(L, 1); /* copy co to top */
-  if(lua_rawget(L, lua_upvalueindex(1)) == LUA_TNIL) { /* coroset[co] */
-    return luaL_argerror(L, 1, "attempt to resume untagged coroutine");
-  }
-  if(lua_rawgeti(L, -1, 4) == LUA_TNIL) { /* yielder == nil? */
-    lua_pop(L, 1);
-    lua_insert(L, 1); /* move coroset[co] to front */
-    return auxresume(L, co, co, 0, lua_gettop(L) - 2); /* stack: coroset[co], co, <args> */
-  } else {
-    lua_State *yco = lua_tothread(L, -1);
-    lua_pop(L, 1);
-    lua_pushnil(L);
-    lua_rawseti(L, -2, 4); /* clear coroset[co].yielder */
-    lua_insert(L, 1); /* move coroset[co] to front */
-    return auxresume(L, co, yco, LUA_YIELD, lua_gettop(L) - 2); /* stack: coroset[co], co, <args> */
-  }
-}
-
-static int moveyieldedcall (lua_State *L, lua_State *co) {
+static int moveyielded (lua_State *L, lua_State *co) {
   int nres = lua_gettop(co);
   if (!lua_checkstack(L, nres)) {
     lua_pop(co, nres);  /* remove results anyway */
@@ -181,14 +69,14 @@ static int auxcallk (lua_State *L, int status, lua_KContext ctx) {
   lua_rawseti(L, 1, 2); /* coroset[co].stacked = nil */
   status = lua_resume(co, L, narg);
   if (status == LUA_OK) {
-    return moveyieldedcall(L, co);
+    return moveyielded(L, co);
   } else if(status == LUA_YIELD) {
     lua_xmove(co, L, 2); /* move tag and yielder */
     /* stack: coroset[co], co, tag, ytag, yielder */
     if(lua_compare(L, -3, -2, LUA_OPEQ)) { /* yield was for me */
       lua_State *yco = lua_tothread(L, -1);
       lua_rawseti(L, 1, 4); /* set new coroset[co].yielder */
-      return moveyieldedcall(L, yco);
+      return moveyielded(L, yco);
     } else if(lua_isyieldable(L)) { /* pass it along */
       lua_pushboolean(L, 1);
       lua_rawseti(L, 1, 2); /* coroset[co].stacked = true */
@@ -262,6 +150,25 @@ static int taggedcoro_cocall (lua_State *L) {
     lua_insert(L, 1); /* move coroset[co] to front */
     return auxcall(L, co, yco, LUA_YIELD, lua_gettop(L) - 2); /* stack: coroset[co], co, <args> */
   }
+}
+
+static int resumek(lua_State *L, int status, lua_KContext ctx) {
+  if (status != LUA_OK && status != LUA_YIELD) {  /* error? */
+    lua_pushboolean(L, 0);  /* first result (false) */
+    lua_pushvalue(L, -2);  /* error message */
+    return 2;  /* return false, msg */
+  } else {
+    lua_pushboolean(L, 1);
+    lua_insert(L, 1);
+    return lua_gettop(L);  /* return true + all results */
+  }
+}
+
+static int taggedcoro_coresume (lua_State *L) {
+  lua_pushvalue(L, lua_upvalueindex(1));
+  lua_pushcclosure(L, taggedcoro_cocall, 1);
+  lua_insert(L, 1);
+  return resumek(L, lua_pcallk(L, lua_gettop(L) - 1, LUA_MULTRET, 0, 0, resumek), 0);
 }
 
 static int taggedcoro_cocreate (lua_State *L) {
