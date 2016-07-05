@@ -264,7 +264,6 @@ static int taggedcoro_cocreate (lua_State *L) {
   }
   luaL_checktype(L, 2, LUA_TFUNCTION);
   NL = lua_newthread(L);
-  luaL_setmetatable(L, "taggedcoro");
   lua_pushvalue(L, -1); /* dup */
   lua_createtable(L, 4, 0); /* meta = { <tag>, <stacked>, <parent>, <yielder> } */
   lua_pushvalue(L, 1); /* copy tag to top */
@@ -504,6 +503,9 @@ LUAMOD_API int luaopen_taggedcoro (lua_State *L) {
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, taggedcoro_cocall); /* __call */
   lua_setfield(L, -2, "__call");
+  lua_pop(L, 1);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
+  luaL_setmetatable(L, "taggedcoro");
   lua_pop(L, 1);
   luaL_newlibtable(L, tc_funcs);
   luaL_setfuncs(L, tc_funcs, 1);
