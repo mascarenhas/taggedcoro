@@ -8,7 +8,6 @@ local running = coroutine.running
 local isyieldable = coroutine.isyieldable
 
 local coros = setmetatable({}, { __mode = "k" })
-local tagset = setmetatable({}, { __mode = "k" })
 
 local M = {}
 
@@ -34,7 +33,6 @@ local function resumekk(co, meta, ...)
 end
 
 local function resumek(co, meta, ok, ...)
-  tagset[meta.tag] = tagset[meta.tag] - 1
   if not ok then return false, ... end
   if status(co) == "dead" then
     return ok, ...
@@ -44,42 +42,60 @@ local function resumek(co, meta, ok, ...)
     meta.stacked = true
     return resumekk(co, meta, yield(...))
   end
-  return ok, select(3, ...)
+  return ok, select(2, ...)
 end
 
 function M.resume(co, ...)
   local meta = coros[co]
   if meta then
-    if meta.stacked then return error("cannot resume stacked coroutine") end
-    tagset[meta.tag] = (tagset[meta.tag] or 0) + 1
+    if meta.stacked then return error("attempt to resume untagged coroutine") end
     meta.caller = M.running()
+    meta.isyieldable = isyieldable()
     return resumek(co, meta, resume(co, ...))
   else
-    return resume(co, ...)
+    error("attempt to resume untagged coroutine")
   end
 end
 
 function M.status(co)
-  if coros[co].stacked then
+  if coros[co] and coros[co].stacked then
     return "stacked"
   else
     return status(co)
   end
 end
 
-function M.caller(co)
+function M.parent(co)
   return coros[co] and coros[co].caller
 end
 
 function M.tag(co)
-  return coros[co].tag
+  return coros[co] and coros[co].tag
 end
 
 M.running = running
 
 function M.isyieldable(tag)
   tag = tag or DEFAULT_TAG
-  return isyieldable() and tagset[tag] and (tagset[tag] > 0)
+  if not isyieldable() then
+    return false
+  end
+  local co = M.running()
+  while true do
+    if not coros[co] then
+      return false
+    end
+    if coros[co].tag == tag then
+      return true
+    end
+    if not coros[co].isyieldable then
+      return false
+    end
+    co = coros[co].caller
+    if not co then
+      return false
+    end
+  end
 end
 
 function M.fortag(tag)
