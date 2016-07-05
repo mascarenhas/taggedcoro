@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "lua.h"
 #include "lauxlib.h"
 #include "lualib.h"
@@ -59,7 +60,7 @@ static int moveyielded(lua_State *L, lua_State *co) {
 static int auxresumek(lua_State *L, int status, lua_KContext ctx) {
   lua_State *co = (lua_State*)ctx;
   int narg;
-  if(lua_gettop(L) > 4) {
+  if(lua_gettop(L) > 3) {
     narg = 2;
     lua_settop(co, 0);
     lua_xmove(L, co, 2);
@@ -73,7 +74,7 @@ static int auxresumek(lua_State *L, int status, lua_KContext ctx) {
     return moveyielded(L, co);
   } else if(status == LUA_YIELD) {
     lua_xmove(co, L, 2); /* move tag and yielder */
-    /* stack: coroset[co], old yielder, co, tag, ytag, yielder */
+    /* stack: coroset[co], co, tag, ytag, yielder */
     if(lua_compare(L, -3, -2, LUA_OPEQ)) { /* yield was for me */
       lua_State *yco = lua_tothread(L, -1);
       lua_rawseti(L, 1, 4); /* set new coroset[co].yielder */
@@ -88,20 +89,19 @@ static int auxresumek(lua_State *L, int status, lua_KContext ctx) {
       return -1;
     }
   } else {
-    lua_pushboolean(L, 0);
-    if(lua_gettop(co) > 1 && lua_isthread(co, -2)) {
-      lua_xmove(co, L, 2); /* move source and error message */
-      lua_rotate(L, -2, 1); /* exchange source and error message */
-      lua_rawseti(L, 1, 4); /* set coroset[co].yielder = source */
-    } else {
-      lua_xmove(co, L, 1);  /* move error message */
+    if(lua_rawgeti(L, 1, 4) == LUA_TNIL) { /* error has a source? */
+      lua_pushvalue(L, 2);
+      lua_rawseti(L, 1, 4); /* co is the source */
     }
+    lua_pop(L, 1); /* pop source */
+    lua_pushboolean(L, 0);
+    lua_xmove(co, L, 1);  /* move error message */
     return 2;  /* false + error message */
   }
 }
 
 static int auxresume (lua_State *L, lua_State *co, lua_State *yco, int status, int narg) {
-  /* stack: coroset[co], yielder, co, <args> */
+  /* stack: coroset[co], co, <args> */
   if (!lua_checkstack(yco, narg)) {
     lua_pushboolean(L, 0);
     lua_pushliteral(L, "too many arguments to resume");
@@ -121,17 +121,16 @@ static int auxresume (lua_State *L, lua_State *co, lua_State *yco, int status, i
   lua_pushthread(L);
   lua_rawseti(L, 1, 3); /* coroset[co].parent = <running coro> */
   lua_rawgeti(L, 1, 1); /* push tag */
-  /* stack: coroset[co], yielder, co, tag */
+  /* stack: coroset[co], co, tag */
   int r = auxresumek(L, status, (lua_KContext)co);
   while(r == -1) { /* trampoline */
     lua_pushlightuserdata(co, &getco);
     if(lua_pushthread(L)) {
-      lua_pushfstring(co, "tag %s not found", lua_tostring(L, 4));
-      lua_pop(L, 3);
+      lua_pushfstring(co, "tag %s not found", lua_tostring(L, 3));
     } else {
-      lua_pop(L, 3);
       lua_pushliteral(co, "attempt to yield across a C-call boundary");
     }
+    lua_pop(L, 3);
     r = auxresumek(L, LUA_YIELD, (lua_KContext)co);
   }
   return r;
@@ -144,14 +143,16 @@ static int taggedcoro_coresume (lua_State *L) {
     return luaL_argerror(L, 1, "attempt to resume untagged coroutine");
   }
   if(lua_rawgeti(L, -1, 4) == LUA_TNIL) { /* yielder == nil? */
-    lua_rotate(L, 1, 2); /* move coroset[co] and yielder to front */
-    return auxresume(L, co, co, 0, lua_gettop(L) - 3); /* stack: coroset[co], yielder, co, <args> */
+    lua_pop(L, 1);
+    lua_insert(L, 1); /* move coroset[co] to front */
+    return auxresume(L, co, co, 0, lua_gettop(L) - 2); /* stack: coroset[co], co, <args> */
   } else {
     lua_State *yco = lua_tothread(L, -1);
+    lua_pop(L, 1);
     lua_pushnil(L);
-    lua_rawseti(L, -3, 4); /* clear coroset[co].yielder */
-    lua_rotate(L, 1, 2); /* move coroset[co] and yielder to front */
-    return auxresume(L, co, yco, LUA_YIELD, lua_gettop(L) - 3); /* stack: coroset[co], yielder, co, <args> */
+    lua_rawseti(L, -2, 4); /* clear coroset[co].yielder */
+    lua_insert(L, 1); /* move coroset[co] to front */
+    return auxresume(L, co, yco, LUA_YIELD, lua_gettop(L) - 2); /* stack: coroset[co], co, <args> */
   }
 }
 
@@ -166,9 +167,10 @@ static int moveyieldedcall (lua_State *L, lua_State *co) {
 }
 
 static int auxcallk (lua_State *L, int status, lua_KContext ctx) {
+  /* stack: coroset[co], co, tag */
   lua_State *co = (lua_State*)ctx;
   int narg;
-  if(lua_gettop(L) > 4) {
+  if(lua_gettop(L) > 3) {
     narg = 2;
     lua_settop(co, 0);
     lua_xmove(L, co, 2);
@@ -182,7 +184,7 @@ static int auxcallk (lua_State *L, int status, lua_KContext ctx) {
     return moveyieldedcall(L, co);
   } else if(status == LUA_YIELD) {
     lua_xmove(co, L, 2); /* move tag and yielder */
-    /* stack: coroset[co], old yielder, co, tag, ytag, yielder */
+    /* stack: coroset[co], co, tag, ytag, yielder */
     if(lua_compare(L, -3, -2, LUA_OPEQ)) { /* yield was for me */
       lua_State *yco = lua_tothread(L, -1);
       lua_rawseti(L, 1, 4); /* set new coroset[co].yielder */
@@ -197,18 +199,19 @@ static int auxcallk (lua_State *L, int status, lua_KContext ctx) {
       return -1;
     }
   } else {
-    if(lua_gettop(co) > 1 && lua_isthread(co, -2)) {
-      lua_xmove(co, L, 2);  /* move source and error message */
-    } else { /* i am the source */
-      lua_pushvalue(L, 3);
-      lua_xmove(co, L, 2);  /* move error message */
+    lua_pushthread(L);
+    lua_rawget(L, lua_upvalueindex(1)); /* coroset[L] */
+    if(lua_rawgeti(L, 1, 4) != LUA_TNIL) { /* co is not the source */
+      lua_rawseti(L, -2, 4); /* coroset[L].source = coroset[co].source */
+    } else { /* co is the source */
+      lua_pushvalue(L, 2);
+      lua_rawseti(L, 1, 4); /* coroset[co].source = co */
+      lua_pushvalue(L, 2);
+      lua_rawseti(L, -3, 4); /* coroset[L].source = co */
+      lua_pop(L, 1);
     }
-    //lua_xmove(co, L, 1);  /* move error message */
-    //if (lua_type(L, -1) == LUA_TSTRING) {  /* error object is a string? */
-    //  luaL_where(L, 1);  /* add extra info */
-    //  lua_insert(L, -2);
-    //  lua_concat(L, 2);
-    //}
+    lua_pop(L, 1); /* coroset[L] */
+    lua_xmove(co, L, 1); /* move error message */
     return lua_error(L);
   }
 }
@@ -226,17 +229,16 @@ static int auxcall (lua_State *L, lua_State *co, lua_State *yco, int status, int
   lua_pushthread(L);
   lua_rawseti(L, 1, 3); /* coroset[co].parent = <running coro> */
   lua_rawgeti(L, 1, 1); /* push tag */
-  /* stack: coroset[co], yielder, co, tag */
+  /* stack: coroset[co], co, tag */
   int r = auxcallk(L, status, (lua_KContext)co);
   while(r == -1) { /* trampoline */
     lua_pushlightuserdata(co, &getco);
     if(lua_pushthread(L)) {
-      lua_pushfstring(co, "tag %s not found", lua_tostring(L, 4));
-      lua_pop(L, 3);
+      lua_pushfstring(co, "tag %s not found", lua_tostring(L, 3));
     } else {
-      lua_pop(L, 3);
       lua_pushliteral(co, "attempt to yield across a C-call boundary");
     }
+    lua_pop(L, 3);
     r = auxcallk(L, LUA_YIELD, (lua_KContext)co);
   }
   return r;
@@ -249,14 +251,16 @@ static int taggedcoro_cocall (lua_State *L) {
     return luaL_argerror(L, 1, "attempt to resume untagged coroutine");
   }
   if(lua_rawgeti(L, -1, 4) == LUA_TNIL) { /* yielder == nil? */
-    lua_rotate(L, 1, 2); /* move coroset[co] and yielder to front */
-    return auxcall(L, co, co, 0, lua_gettop(L) - 3); /* stack: coroset[co], yielder, co, <args> */
+    lua_pop(L, 1);
+    lua_insert(L, 1); /* move coroset[co] to front */
+    return auxcall(L, co, co, 0, lua_gettop(L) - 2); /* stack: coroset[co], co, <args> */
   } else {
     lua_State *yco = lua_tothread(L, -1);
+    lua_pop(L, 1);
     lua_pushnil(L);
-    lua_rawseti(L, -3, 4); /* clear coroset[co].yielder */
-    lua_rotate(L, 1, 2); /* move coroset[co] and yielder to front */
-    return auxcall(L, co, yco, LUA_YIELD, lua_gettop(L) - 3); /* stack: coroset[co], yielder, co, <args> */
+    lua_rawseti(L, -2, 4); /* clear coroset[co].yielder */
+    lua_insert(L, 1); /* move coroset[co] to front */
+    return auxcall(L, co, yco, LUA_YIELD, lua_gettop(L) - 2); /* stack: coroset[co], co, <args> */
   }
 }
 
@@ -437,70 +441,10 @@ static int taggedcoro_cowrapc (lua_State *L) {
   return taggedcoro_cowrap(L);
 }
 
-static const luaL_Reg ftc_funcs[] = {
-  {"create", taggedcoro_cocreatec},
-  {"wrap", taggedcoro_cowrapc},
-  {"yield", taggedcoro_yieldc},
-  {"isyieldable", taggedcoro_yieldablec},
-  {NULL, NULL}
-};
-
-static const luaL_Reg ftuc_funcs[] = {
-  {"resume", taggedcoro_coresume},
-  {"call", taggedcoro_cocall},
-  {"running", taggedcoro_corunning},
-  {"status", taggedcoro_costatus},
-  {"parent", taggedcoro_coparent},
-  {"source", taggedcoro_cosource},
-  {"tag", taggedcoro_cotag},
-  {NULL, NULL}
-};
-
-static int taggedcoro_fortag(lua_State *L) {
-  if(lua_isnoneornil(L, 1)) {
-    lua_pushliteral(L, "coroutine");
-    lua_replace(L, 1);
-  }
-  lua_newtable(L);
-  lua_pushvalue(L, lua_upvalueindex(1));
-  luaL_setfuncs(L, ftuc_funcs, 1);
-  lua_pushvalue(L, lua_upvalueindex(1));
-  lua_pushvalue(L, 1);
-  luaL_setfuncs(L, ftc_funcs, 2);
-  lua_pushvalue(L, lua_upvalueindex(1));
-  lua_pushcclosure(L, taggedcoro_fortag, 1);
-  lua_setfield(L, -2, "fortag");
-  return 1;
-}
-
-static const luaL_Reg mt_funcs[] = {
-  {"resume", taggedcoro_coresume},
-  {"status", taggedcoro_costatus},
-  {"parent", taggedcoro_coparent},
-  {"source", taggedcoro_cosource},
-  {"call", taggedcoro_cocall},
-  {"tag", taggedcoro_cotag},
-  {NULL, NULL}
-};
-
-static int taggedcoro_install(lua_State *L) {
-  lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
-  lua_createtable(L, 0, 2);
-  lua_pushvalue(L, lua_upvalueindex(1)); /* extra metadada for each coroutine */
-  luaL_newlibtable(L, mt_funcs); /* __index */
-  luaL_setfuncs(L, mt_funcs, 1);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, taggedcoro_cocall); /* __call */
-  lua_setfield(L, -2, "__call");
-  lua_setmetatable(L, -2);
-  luaL_requiref(L, "taggedcoro", luaopen_taggedcoro, 0);
-  return 1;
-}
-
 /*
-** {======================================================
-** Traceback - taken with modifications from lauxlib.c
-** =======================================================
+** {===============================================================
+** Traceback - taken with modifications from lauxlib.c and ldblib.c
+** ================================================================
 */
 
 #define LEVELS1	10	/* size of the first part of the stack */
@@ -532,7 +476,6 @@ static int findfield (lua_State *L, int objidx, int level) {
   }
   return 0;  /* not found */
 }
-
 
 /*
 ** Search for a name for a function in all loaded modules
@@ -588,16 +531,15 @@ static int lastlevel (lua_State *L) {
   return le - 1;
 }
 
-
-static void auxtraceback (lua_State *L, const char *msg, int level) {
-
+static void auxtraceback (lua_State *L, const char *msg, int levl) {
   lua_Debug ar;
   int top = lua_gettop(L);
   if (msg) { lua_pushfstring(L, "%s\n", msg); }
   lua_pushliteral(L, "stack traceback:");
   do {
-    lua_State* current = lua_tothread(L, -1); /* get current thread */
-    int last = lastlevel(LC);
+    int level = levl;
+    lua_State* current = lua_tothread(L, top); /* get current thread */
+    int last = lastlevel(current);
     int n1 = (last - level > LEVELS1 + LEVELS2) ? LEVELS1 : -1;
     luaL_checkstack(L, 10, NULL);
     while (lua_getstack(current, level++, &ar)) {
@@ -614,18 +556,26 @@ static void auxtraceback (lua_State *L, const char *msg, int level) {
         lua_concat(L, lua_gettop(L) - top);
       }
     }
-    if(lua_rawequal(L, -1, -2)) break; /* from == to */
+    if(lua_rawequal(L, top, top-1)) break; /* from == to */
+    lua_pushvalue(L, top); /* get current "from" */
     if(lua_rawget(L, lua_upvalueindex(1)) == LUA_TNIL) { /* coroset[from] */
-      return luaL_error("untagged coroutine in traceback");
+      lua_pop(L, 1);
+      lua_pushliteral(L, "\n\treached untagged coroutine, aborting traceback");
+      break;
     }
     if(lua_rawgeti(L, -1, 3) == LUA_TNIL) {
-      return luaL_error("broken parent link in traceback");
+      lua_pop(L, 2);
+      lua_pushliteral(L, "\n\tbroken parent link, aborting traceback");
+      break;
     }
+    lua_replace(L, top); /* replace "from" */
+    lua_pop(L, 1);
   } while(1);
   lua_concat(L, lua_gettop(L) - top);
 }
 
-static lua_State *getthread (lua_State *L, int *arg) {
+static void pushthreads (lua_State *L, int *arg) {
+  lua_settop(L, 3);
   /* push "to" thread */
   if (lua_isthread(L, 1)) {
     *arg = 1;
@@ -636,23 +586,86 @@ static lua_State *getthread (lua_State *L, int *arg) {
     lua_pushthread(L);
   }
   lua_pushvalue(L, -1); /* dup "to" thread to get "from" thread */
-  lua_rawget(L, lua_upvalueindex(1)); /* coroset[co] */
-  if(lua_rawgeti(L, 4) == LUA_TNIL) { /* coroset[co].yielder is "from" thread */
-    lua_pop(L, 1);
-    lua_pushvalue(L, -1); /* "to" = "from" is no yielder present */
-  }
+  if(lua_rawget(L, lua_upvalueindex(1)) != LUA_TNIL) { /* coroset[co] */
+    if(lua_rawgeti(L, -1, 4) == LUA_TNIL) { /* coroset[co].source is "from" thread */
+      lua_pop(L, 1);
+      lua_pushvalue(L, -2); /* "to" = "from" if no source present */
+    }
+    lua_remove(L, -2); /* remove coroset[co] from stack */
+  } else lua_pop(L, 1); /* remove nil, "to" = "from" if untagged */
 }
 
 static int taggedcoro_traceback (lua_State *L) {
+  int arg;
   pushthreads(L, &arg); /* push to and from threads to top */
   const char *msg = luaL_optstring(L, arg + 1, NULL);
-  int level = (int)luaL_optinteger(L, arg + 2, (L == L1) ? 1 : 0);
+  int level = (int)luaL_optinteger(L, arg + 2, 1);
   auxtraceback(L, msg, level);
   return 1;
 }
 
 /* }====================================================== */
 
+static const luaL_Reg ftc_funcs[] = {
+  {"create", taggedcoro_cocreatec},
+  {"wrap", taggedcoro_cowrapc},
+  {"yield", taggedcoro_yieldc},
+  {"isyieldable", taggedcoro_yieldablec},
+  {NULL, NULL}
+};
+
+static const luaL_Reg ftuc_funcs[] = {
+  {"resume", taggedcoro_coresume},
+  {"call", taggedcoro_cocall},
+  {"running", taggedcoro_corunning},
+  {"status", taggedcoro_costatus},
+  {"parent", taggedcoro_coparent},
+  {"source", taggedcoro_cosource},
+  {"tag", taggedcoro_cotag},
+  {"traceback", taggedcoro_traceback},
+  {NULL, NULL}
+};
+
+static int taggedcoro_fortag(lua_State *L) {
+  if(lua_isnoneornil(L, 1)) {
+    lua_pushliteral(L, "coroutine");
+    lua_replace(L, 1);
+  }
+  lua_newtable(L);
+  lua_pushvalue(L, lua_upvalueindex(1));
+  luaL_setfuncs(L, ftuc_funcs, 1);
+  lua_pushvalue(L, lua_upvalueindex(1));
+  lua_pushvalue(L, 1);
+  luaL_setfuncs(L, ftc_funcs, 2);
+  lua_pushvalue(L, lua_upvalueindex(1));
+  lua_pushcclosure(L, taggedcoro_fortag, 1);
+  lua_setfield(L, -2, "fortag");
+  return 1;
+}
+
+static const luaL_Reg mt_funcs[] = {
+  {"resume", taggedcoro_coresume},
+  {"status", taggedcoro_costatus},
+  {"parent", taggedcoro_coparent},
+  {"source", taggedcoro_cosource},
+  {"call", taggedcoro_cocall},
+  {"tag", taggedcoro_cotag},
+  {NULL, NULL}
+};
+
+static int taggedcoro_install(lua_State *L) {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
+  lua_createtable(L, 0, 2);
+  lua_pushvalue(L, lua_upvalueindex(1)); /* extra metadada for each coroutine */
+  luaL_newlibtable(L, mt_funcs); /* __index */
+  luaL_setfuncs(L, mt_funcs, 1);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, taggedcoro_cocall); /* __call */
+  lua_setfield(L, -2, "__call");
+  lua_setmetatable(L, -2);
+  luaL_requiref(L, "taggedcoro", luaopen_taggedcoro, 0);
+  return 1;
+}
 
 static const luaL_Reg tc_funcs[] = {
   {"create", taggedcoro_cocreate},
@@ -668,10 +681,12 @@ static const luaL_Reg tc_funcs[] = {
   {"source", taggedcoro_cosource},
   {"tag", taggedcoro_cotag},
   {"install", taggedcoro_install},
+  {"traceback", taggedcoro_traceback},
   {NULL, NULL}
 };
 
 LUAMOD_API int luaopen_taggedcoro (lua_State *L) {
+  luaL_newlibtable(L, tc_funcs);
   lua_newtable(L); /* extra metadata for each coroutine */
   lua_newtable(L); /* metatable for previous table */
   lua_pushliteral(L, "k");
@@ -679,8 +694,7 @@ LUAMOD_API int luaopen_taggedcoro (lua_State *L) {
   lua_setmetatable(L, -2);
   lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
   lua_createtable(L, 4, 0);
-  lua_settable(L, -3);
-  luaL_newlibtable(L, tc_funcs);
+  lua_rawset(L, -3);
   luaL_setfuncs(L, tc_funcs, 1);
   return 1;
 }
