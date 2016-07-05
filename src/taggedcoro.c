@@ -4,6 +4,10 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+/* exports */
+LUAMOD_API int luaopen_taggedcoro (lua_State *L);
+/* end exports */
+
 static void stackDump (lua_State *L) {
   int i;
   int top = lua_gettop(L);
@@ -262,15 +266,20 @@ static int taggedcoro_cocreate (lua_State *L) {
     lua_pushliteral(L, "coroutine");
     lua_replace(L, 1);
   }
-  luaL_checktype(L, 2, LUA_TFUNCTION);
-  NL = lua_newthread(L);
-  lua_pushvalue(L, -1); /* dup */
+  if(lua_isthread(L, 2)) {
+    NL = lua_tothread(L, 2);
+  } else if(lua_isfunction(L, 2)) {
+    NL = lua_newthread(L);
+    lua_pushvalue(L, 2);  /* copy function to top */
+    lua_xmove(L, NL, 1);  /* move function from L to NL */
+  } else {
+    return luaL_argerror(L, 2, "expected function or thread");
+  }
+  lua_pushvalue(L, -1); /* dup NL */
   lua_createtable(L, 4, 0); /* meta = { <tag>, <stacked>, <parent>, <yielder> } */
   lua_pushvalue(L, 1); /* copy tag to top */
   lua_rawseti(L, -2, 1); /* meta[1] = tag */
   lua_rawset(L, lua_upvalueindex(1)); /* coroset[co] = meta */
-  lua_pushvalue(L, 2);  /* copy function to top */
-  lua_xmove(L, NL, 1);  /* move function from L to NL */
   return 1;
 }
 
@@ -438,6 +447,7 @@ static const luaL_Reg ftc_funcs[] = {
 
 static const luaL_Reg ftuc_funcs[] = {
   {"resume", taggedcoro_coresume},
+  {"call", taggedcoro_cocall},
   {"running", taggedcoro_corunning},
   {"status", taggedcoro_costatus},
   {"parent", taggedcoro_coparent},
@@ -463,9 +473,34 @@ static int taggedcoro_fortag(lua_State *L) {
   return 1;
 }
 
+static const luaL_Reg mt_funcs[] = {
+  {"resume", taggedcoro_coresume},
+  {"status", taggedcoro_costatus},
+  {"parent", taggedcoro_coparent},
+  {"source", taggedcoro_cosource},
+  {"call", taggedcoro_cocall},
+  {"tag", taggedcoro_cotag},
+  {NULL, NULL}
+};
+
+static int taggedcoro_install(lua_State *L) {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
+  lua_createtable(L, 0, 2);
+  lua_pushvalue(L, lua_upvalueindex(1)); /* extra metadada for each coroutine */
+  luaL_newlibtable(L, mt_funcs); /* __index */
+  luaL_setfuncs(L, mt_funcs, 1);
+  lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, taggedcoro_cocall); /* __call */
+  lua_setfield(L, -2, "__call");
+  lua_setmetatable(L, -2);
+  luaL_requiref(L, "taggedcoro", luaopen_taggedcoro, 0);
+  return 1;
+}
+
 static const luaL_Reg tc_funcs[] = {
   {"create", taggedcoro_cocreate},
   {"resume", taggedcoro_coresume},
+  {"call", taggedcoro_cocall},
   {"running", taggedcoro_corunning},
   {"status", taggedcoro_costatus},
   {"wrap", taggedcoro_cowrap},
@@ -475,15 +510,7 @@ static const luaL_Reg tc_funcs[] = {
   {"fortag", taggedcoro_fortag},
   {"source", taggedcoro_cosource},
   {"tag", taggedcoro_cotag},
-  {NULL, NULL}
-};
-
-static const luaL_Reg mt_funcs[] = {
-  {"resume", taggedcoro_coresume},
-  {"status", taggedcoro_costatus},
-  {"parent", taggedcoro_coparent},
-  {"source", taggedcoro_cosource},
-  {"tag", taggedcoro_cotag},
+  {"install", taggedcoro_install},
   {NULL, NULL}
 };
 
@@ -496,17 +523,6 @@ LUAMOD_API int luaopen_taggedcoro (lua_State *L) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
   lua_createtable(L, 4, 0);
   lua_settable(L, -3);
-  luaL_newmetatable(L, "taggedcoro");
-  lua_pushvalue(L, -2); /* extra metadada for each coroutine */
-  lua_newtable(L); /* __index */
-  luaL_setfuncs(L, mt_funcs, 1);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, taggedcoro_cocall); /* __call */
-  lua_setfield(L, -2, "__call");
-  lua_pop(L, 1);
-  lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
-  luaL_setmetatable(L, "taggedcoro");
-  lua_pop(L, 1);
   luaL_newlibtable(L, tc_funcs);
   luaL_setfuncs(L, tc_funcs, 1);
   return 1;
