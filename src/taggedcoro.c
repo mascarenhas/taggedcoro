@@ -258,7 +258,10 @@ static int taggedcoro_cocall (lua_State *L) {
 
 static int taggedcoro_cocreate (lua_State *L) {
   lua_State *NL;
-  luaL_checkany(L, 1);
+  if(lua_isnoneornil(L, 1)) {
+    lua_pushliteral(L, "coroutine");
+    lua_replace(L, 1);
+  }
   luaL_checktype(L, 2, LUA_TFUNCTION);
   NL = lua_newthread(L);
   luaL_setmetatable(L, "taggedcoro");
@@ -363,7 +366,10 @@ static int taggedcoro_costatus (lua_State *L) {
 }
 
 static int taggedcoro_yieldable (lua_State *L) {
-  luaL_checkany(L, 1);
+  if(lua_isnoneornil(L, 1)) {
+    lua_pushliteral(L, "coroutine");
+    lua_replace(L, 1);
+  }
   if(!lua_isyieldable(L)) {
     lua_pushboolean(L, 0);
     return 1;
@@ -442,7 +448,10 @@ static const luaL_Reg ftuc_funcs[] = {
 };
 
 static int taggedcoro_fortag(lua_State *L) {
-  luaL_checkany(L, 1);
+  if(lua_isnoneornil(L, 1)) {
+    lua_pushliteral(L, "coroutine");
+    lua_replace(L, 1);
+  }
   lua_newtable(L);
   lua_pushvalue(L, lua_upvalueindex(1));
   luaL_setfuncs(L, ftuc_funcs, 1);
