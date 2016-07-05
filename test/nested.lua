@@ -1,12 +1,5 @@
 local inner = require("taggedcoro").fortag("inner")
-local outer
-if select(2, ...) then
-  print("testing with tagged outer")
-  outer = require("taggedcoro").fortag("outer")
-else
-  print("testing with untagged outer")
-  outer = coroutine -- tagging inner yields should be sufficient
-end
+local outer = require("taggedcoro").fortag("outer") -- tagged and untagged coroutines do not mix!
 
 local L = table.pack or function( ... )
   return { n = select( '#', ... ), ... }

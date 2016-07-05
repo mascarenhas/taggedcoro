@@ -12,8 +12,6 @@ local tagset = setmetatable({}, { __mode = "k" })
 
 local M = {}
 
-local MARK = {}
-
 local DEFAULT_TAG = "coroutine"
 
 function M.create(tag, f)
@@ -27,7 +25,7 @@ end
 function M.yield(tag, ...)
   tag = tag or DEFAULT_TAG
   if not M.isyieldable(tag) then return error("no coroutine for tag " .. tostring(tag)) end
-  return yield(MARK, tag, ...)
+  return yield(tag, ...)
 end
 
 local function resumekk(co, meta, ...)
@@ -41,8 +39,8 @@ local function resumek(co, meta, ok, ...)
   if status(co) == "dead" then
     return ok, ...
   end
-  local mark, tag = ...
-  if mark ~= MARK or meta.tag ~= tag then
+  local tag = ...
+  if meta.tag ~= tag then
     meta.stacked = true
     return resumekk(co, meta, yield(...))
   end
