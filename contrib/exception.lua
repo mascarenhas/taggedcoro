@@ -36,7 +36,7 @@ function ex.traceback(co, msg)
   local tb = { msg, "stack traceback:" }
   while co do
     tb[#tb+1] = debug.traceback(co):gsub("^stack traceback:\n", "")
-    co = coroutine.caller(co)
+    co = coroutine.parent(co)
   end
   return table.concat(tb, "\n")
 end
