@@ -1,3 +1,5 @@
+local yield = coroutine.yield
+local wrap = coroutine.wrap
 local coroutine = require "taggedcoro"
 
 local function zero()
@@ -18,6 +20,7 @@ end
 
 local cotwo = coroutine.create("two", two)
 local ctwo = coroutine.wrap("two", cotwo)
+--local ctwo = wrap(two)
 --two()
 print("main", coroutine.running())
 
@@ -25,8 +28,7 @@ print("main", coroutine.running())
 --local ok, err = coroutine.resume(cotwo)
 --print(coroutine.traceback(cotwo, err))
 
-
-xpcall(ctwo, function(msg)
+print(xpcall(ctwo, function(msg)
   print(coroutine.traceback(msg))
   return msg
-end)
+end))

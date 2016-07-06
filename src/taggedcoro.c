@@ -78,16 +78,28 @@ static int auxcallk (lua_State *L, int status, lua_KContext ctx) {
   if (status == LUA_OK) {
     return moveyielded(L, co);
   } else if(status == LUA_YIELD) {
-    lua_xmove(co, L, 2); /* move tag and yielder */
-    /* stack: coroset[co], co, tag, ytag, yielder */
-    if(lua_compare(L, -3, -2, LUA_OPEQ)) { /* yield was for me */
+    if(!lua_islightuserdata(co, -1) || (&getco != lua_topointer(co, -1))) {
+      return luaL_error(L, "attempt to yield to tagged coroutine with regular yield");
+    }
+    lua_xmove(co, L, 3); /* move tag, yielder, sentinel */
+    /* stack: coroset[co], co, tag, ytag, yielder, sentinel */
+    if(lua_compare(L, -4, -3, LUA_OPEQ)) { /* yield was for me */
+      lua_pop(L, 1); /* pop sentinel */
       lua_State *yco = lua_tothread(L, -1);
       lua_rawseti(L, 1, 4); /* set new coroset[co].yielder */
       return moveyielded(L, yco);
-    } else if(lua_isyieldable(L)) { /* pass it along */
-      lua_pushboolean(L, 1);
-      lua_rawseti(L, 1, 2); /* coroset[co].stacked = true */
-      return lua_yieldk(L, 2, (lua_KContext)co, auxcallk);
+    } else if(lua_isyieldable(L)) { /* try to pass it along */
+      lua_pushthread(L);
+      if(lua_rawget(L, lua_upvalueindex(1)) != LUA_TNIL) { /* parent is tagged, pass it along */
+        lua_pop(L, 1);
+        lua_pushboolean(L, 1);
+        lua_rawseti(L, 1, 2); /* coroset[co].stacked = true */
+        return lua_yieldk(L, 3, (lua_KContext)co, auxcallk);
+      } else {
+        lua_pop(L, 1);
+        lua_settop(co, 0); /* clear coroutine stack */
+        return -1; /* return code for trampoline */
+      }
     } else { /* end of the line */
       lua_settop(co, 0); /* clear coroutine stack */
       /* return code for trampoline */
@@ -95,15 +107,22 @@ static int auxcallk (lua_State *L, int status, lua_KContext ctx) {
     }
   } else {
     lua_pushthread(L);
-    lua_rawget(L, lua_upvalueindex(1)); /* coroset[L] */
-    if(lua_rawgeti(L, 1, 4) != LUA_TNIL) { /* co is not the source */
-      lua_rawseti(L, -2, 4); /* coroset[L].source = coroset[co].source */
-    } else { /* co is the source */
-      lua_pushvalue(L, 2);
-      lua_rawseti(L, 1, 4); /* coroset[co].source = co */
-      lua_pushvalue(L, 2);
-      lua_rawseti(L, -3, 4); /* coroset[L].source = co */
-      lua_pop(L, 1);
+    if(lua_rawget(L, lua_upvalueindex(1)) == LUA_TNIL) { /* coroset[L] */
+      if(lua_rawgeti(L, 1, 4) == LUA_TNIL) { /* co is the source */
+        lua_pushvalue(L, 2);
+        lua_rawseti(L, 1, 4); /* coroset[co].source = co */
+        lua_pop(L, 1);
+      }
+    } else {
+      if(lua_rawgeti(L, 1, 4) != LUA_TNIL) { /* co is not the source */
+        lua_rawseti(L, -2, 4); /* coroset[L].source = coroset[co].source */
+      } else { /* co is the source */
+        lua_pushvalue(L, 2);
+        lua_rawseti(L, 1, 4); /* coroset[co].source = co */
+        lua_pushvalue(L, 2);
+        lua_rawseti(L, -3, 4); /* coroset[L].source = co */
+        lua_pop(L, 1);
+      }
     }
     lua_pop(L, 1); /* coroset[L] */
     lua_xmove(co, L, 1); /* move error message */
@@ -129,11 +148,13 @@ static int auxcall (lua_State *L, lua_State *co, lua_State *yco, int status, int
   while(r == -1) { /* trampoline */
     lua_pushlightuserdata(co, &getco);
     if(lua_pushthread(L)) {
-      lua_pushfstring(co, "tag %s not found", lua_tostring(L, 3));
+      lua_pushfstring(co, "coroutine for tag %s not found", lua_tostring(L, 4));
+    } else if(lua_isyieldable(L)) {
+      lua_pushfstring(co, "attempt to yield across untagged coroutine");
     } else {
       lua_pushliteral(co, "attempt to yield across a C-call boundary");
     }
-    lua_pop(L, 3);
+    lua_pop(L, 4);
     r = auxcallk(L, LUA_YIELD, (lua_KContext)co);
   }
   return r;
@@ -208,13 +229,8 @@ static int taggedcoro_cocreatec (lua_State *L) {
 }
 
 static int yieldk(lua_State *L, int status, lua_KContext ctx) {
-  if(lua_gettop(L) == 2 && lua_islightuserdata(L, 1)) {
-    lua_pushlightuserdata(L, &getco);
-    if(lua_rawequal(L, 1, -1)) {
-      lua_pop(L, 1);
-      return lua_error(L);
-    }
-    lua_pop(L, 1);
+  if(lua_islightuserdata(L, 1) && (&getco == lua_topointer(L, 1))) {
+    return lua_error(L);
   }
   return lua_gettop(L);
 }
@@ -222,12 +238,14 @@ static int yieldk(lua_State *L, int status, lua_KContext ctx) {
 static int taggedcoro_yield (lua_State *L) {
   lua_rotate(L, 1, -1); /* move tag to top */
   lua_pushthread(L); /* push yielder */
+  lua_pushlightuserdata(L, &getco); /* sentinel */
   return lua_yieldk(L, lua_gettop(L), 0, yieldk);
 }
 
 static int taggedcoro_yieldc (lua_State *L) {
   lua_pushvalue(L, lua_upvalueindex(2));
   lua_pushthread(L); /* push yielder */
+  lua_pushlightuserdata(L, &getco); /* sentinel */
   return lua_yieldk(L, lua_gettop(L), 0, yieldk);
 }
 
