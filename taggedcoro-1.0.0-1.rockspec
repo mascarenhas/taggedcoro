@@ -23,7 +23,7 @@ build = {
    type = "builtin",
    modules = {
      taggedcoro = {
-         sources = { "src/taggedcoro.c" },
+         sources = { "src/taggedcoro.c", "src/isyieldable.c" },
          --defines = { "DEBUG=1"} -- uncomment this line to enable stack_dump debug helper
      },
      ["taggedcoro.iterator"] = "contrib/iterator.lua",

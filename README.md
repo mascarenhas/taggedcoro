@@ -26,11 +26,7 @@ continuing from the point of the original yield.
 A failed yield can be an expensive operation, so if you are
 unsure if you can yield you can use the extended `isyieldable`
 function, which now expects a tag and will return `true`
-only if yielding with this tag will succeed. For Lua 5.2
-`isyieldable` only guarantees that a yield will not fail
-because of a missing tag or pending untagged coroutines,
-but it can still fail because of non-yieldable C functions
-in the stack.
+only if yielding with this tag will succeed. 
 
 A new function `call` resumes a coroutine as if it had been
 *wrapped* by `wrap`: any uncaught errors while running the

@@ -259,9 +259,6 @@ COMPAT53_API int lua_isinteger (lua_State *L, int index);
 #define lua_rotate COMPAT53_CONCAT(COMPAT53_PREFIX, _rotate)
 COMPAT53_API void lua_rotate (lua_State *L, int idx, int n);
 
-#define lua_isyieldable COMPAT53_CONCAT(COMPAT53_PREFIX, _isyieldable)
-COMPAT53_API int lua_isyieldable (lua_State *L);
-
 #define lua_seti COMPAT53_CONCAT(COMPAT53_PREFIX, _seti)
 COMPAT53_API void lua_seti (lua_State *L, int index, lua_Integer i);
 
@@ -291,6 +288,8 @@ COMPAT53_API void luaL_requiref (lua_State *L, const char *modname,
  * lua_arith (new operators)
  * lua_pushfstring (new formats)
  */
+
+LUA_API int lua_isyieldable (lua_State *L);
 
 #define lua_getglobal(L, n) \
   (lua_getglobal(L, n), lua_type(L, -1))

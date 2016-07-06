@@ -511,12 +511,6 @@ static void compat53_reverse (lua_State *L, int a, int b) {
   }
 }
 
-COMPAT53_API int lua_isyieldable (lua_State *L) {
-  int main = lua_pushthread(L);
-  lua_pop(L, 1);
-  return !main;
-}
-
 COMPAT53_API void lua_rotate (lua_State *L, int idx, int n) {
   int n_elems = 0;
   idx = lua_absindex(L, idx);
@@ -582,7 +576,6 @@ COMPAT53_API void luaL_requiref (lua_State *L, const char *modname,
 
 
 #endif /* Lua 5.1 and 5.2 */
-
 
 #endif /* COMPAT53_C_ */
 
