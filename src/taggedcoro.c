@@ -375,8 +375,10 @@ static int taggedcoro_cowrap (lua_State *L) {
 }
 
 static int taggedcoro_cowrapc (lua_State *L) {
-  lua_pushvalue(L, lua_upvalueindex(2));
-  lua_insert(L, 1);
+  if(!lua_isthread(L, 1)) {
+    lua_pushvalue(L, lua_upvalueindex(2));
+    lua_insert(L, 1);
+  }
   return taggedcoro_cowrap(L);
 }
 
@@ -577,9 +579,6 @@ static int taggedcoro_fortag(lua_State *L) {
   lua_pushvalue(L, lua_upvalueindex(1));
   lua_pushvalue(L, 1);
   luaL_setfuncs(L, ftc_funcs, 2);
-  lua_pushvalue(L, lua_upvalueindex(1));
-  lua_pushcclosure(L, taggedcoro_fortag, 1);
-  lua_setfield(L, -2, "fortag");
   return 1;
 }
 
