@@ -1,3 +1,7 @@
+--
+-- Pure Lua implementation - currently out of sync
+--
+
 local coroutine = require "coroutine"
 
 local create = coroutine.create

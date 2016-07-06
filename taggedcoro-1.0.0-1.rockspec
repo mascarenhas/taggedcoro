@@ -1,7 +1,7 @@
 package = "TaggedCoro"
- version = "0.1-1"
- source = {
-    url = "git://github.com/mascarenhas/taggedcoro.git"
+version = "1.0.0-1"
+source = {
+  url = "git://github.com/mascarenhas/taggedcoro.git"
 }
 description = {
     summary = "Tagged Coroutines",
@@ -22,8 +22,10 @@ dependencies = {
 build = {
    type = "builtin",
    modules = {
-     taggedcoro = "src/taggedcoro.c",
-     --taggedcoro = "src/taggedcoro.lua",
+     taggedcoro = {
+         sources = { "src/taggedcoro.c" },
+         --defines = { "DEBUG=1"} -- uncomment this line to enable stack_dump debug helper
+     },
      ["taggedcoro.iterator"] = "contrib/iterator.lua",
      ["taggedcoro.stm"] = "contrib/stm.lua",
      ["taggedcoro.exception"] = "contrib/exception.lua",

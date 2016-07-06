@@ -1,4 +1,8 @@
+
+#ifdef DEBUG
 #include <stdio.h>
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include "lua.h"
@@ -9,9 +13,11 @@
 LUAMOD_API int luaopen_taggedcoro (lua_State *L);
 /* end exports */
 
-static void stackDump (lua_State *L) {
+#ifdef DEBUG
+static void stack_dump (const char *prefix, lua_State *L) {
   int i;
   int top = lua_gettop(L);
+  printf("%s", prefix);
   for (i = 1; i <= top; i++) {  /* repeat for each level */
     int t = lua_type(L, i);
     switch (t) {
@@ -37,6 +43,7 @@ static void stackDump (lua_State *L) {
   }
   printf("\n");  /* end the listing */
 }
+#endif
 
 static lua_State *getco (lua_State *L) {
   lua_State *co = lua_tothread(L, 1);
@@ -550,6 +557,14 @@ static int taggedcoro_fortag(lua_State *L) {
   return 1;
 }
 
+static int taggedcoro_make (lua_State *L) {
+  if(lua_isnoneornil(L, 1)) {
+    lua_newtable(L);
+    lua_replace(L, 1);
+  }
+  return taggedcoro_fortag(L);
+}
+
 static const luaL_Reg mt_funcs[] = {
   {"resume", taggedcoro_coresume},
   {"status", taggedcoro_costatus},
@@ -585,6 +600,7 @@ static const luaL_Reg tc_funcs[] = {
   {"parent", taggedcoro_coparent},
   {"isyieldable", taggedcoro_yieldable},
   {"fortag", taggedcoro_fortag},
+  {"make", taggedcoro_make},
   {"source", taggedcoro_cosource},
   {"tag", taggedcoro_cotag},
   {"install", taggedcoro_install},
