@@ -357,15 +357,21 @@ static int taggedcoro_auxwrap (lua_State *L) {
 static int taggedcoro_cowrap (lua_State *L) {
   if(lua_isthread(L, 1)) {
     lua_pushvalue(L, 1);
+    if(lua_rawget(L, lua_upvalueindex(1)) == LUA_TNIL) {
+      return luaL_error(L, "attempt to wrap an untagged coroutine");
+    } else lua_pop(L, 1);
+    lua_pushvalue(L, 1);
     lua_createtable(L, 4, 0); /* meta = { <tag>, <stacked>, <parent>, <yielder> } */
     lua_pushvalue(L, 1); /* copy tag to top */
     lua_rawseti(L, -2, 1); /* meta[1] = tag */
     lua_rawset(L, lua_upvalueindex(1)); /* coroset[co] = meta */
   } else taggedcoro_cocreate(L);
+  lua_pushvalue(L, -1);
   lua_pushvalue(L, lua_upvalueindex(1));
   lua_insert(L, -2);
   lua_pushcclosure(L, taggedcoro_auxwrap, 2);
-  return 1;
+  lua_insert(L, -2);
+  return 2;
 }
 
 static int taggedcoro_cowrapc (lua_State *L) {
