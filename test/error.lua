@@ -29,6 +29,6 @@ print("main", coroutine.running())
 --print(coroutine.traceback(cotwo, err))
 
 print(xpcall(ctwo, function(msg)
-  print(coroutine.traceback(msg))
+  print(coroutine.traceback(msg, 1))
   return msg
 end))

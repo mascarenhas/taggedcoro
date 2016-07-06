@@ -470,13 +470,13 @@ static int lastlevel (lua_State *L) {
   return le - 1;
 }
 
-static void auxtraceback (lua_State *L, const char *msg, int levl) {
+static void auxtraceback (lua_State *L, const char *msg, int lvl) {
   lua_Debug ar;
   int top = lua_gettop(L);
   if (msg) { lua_pushfstring(L, "%s\n", msg); }
   lua_pushliteral(L, "stack traceback:");
+  int level = lvl;
   do {
-    int level = levl;
     lua_State* current = lua_tothread(L, top); /* get current thread */
     int last = lastlevel(current);
     int n1 = (last - level > LEVELS1 + LEVELS2) ? LEVELS1 : -1;
@@ -509,6 +509,7 @@ static void auxtraceback (lua_State *L, const char *msg, int levl) {
     }
     lua_replace(L, top); /* replace "from" */
     lua_pop(L, 1);
+    level = 1;
   } while(1);
   lua_concat(L, lua_gettop(L) - top);
 }
