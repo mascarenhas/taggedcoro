@@ -40,13 +40,13 @@ and <code>wrap</code> now receive a <em>tag</em> and a function, instead
 of just a function. Function <em>yield</em> now also needs a
 tag as the first argument. The tag can be any Lua value.</p>
 
-<p>A yield with a specific tag yields to the dynamically
-closest resume of a coroutine with that tag (making
+<p>A <code>yield</code> with a specific tag yields to the dynamically
+closest <code>resume</code> of a coroutine with that tag (making
 an analogy with exceptions: the coroutine is like
-a try/catch block, yield is like a throw,
+a try/catch block, <code>yield</code> is like a throw,
 and the tag is analogous with the type of the exception).
 If there is no coroutine with the tag an error is thrown
-at the point of the yield.</p>
+at the point of the <code>yield</code>.</p>
 
 <p>On a successful yield, any coroutine that has been passed
 through in the search for the coroutine that handled that
@@ -57,10 +57,14 @@ handled the yield rewinds the whole stack, resuming the
 stacked coroutines along the way until reaching and finally
 continuing from the point of the original yield.</p>
 
-<p>A failed yield is an expensive operation, so if you are
+<p>A failed yield can be an expensive operation, so if you are
 unsure if you can yield you can use the extended <code>isyieldable</code>
 function, which now expects a tag and will return <code>true</code>
-only if yielding with this tag will succeed.</p>
+only if yielding with this tag will succeed. For Lua 5.2
+<code>isyieldable</code> only guarantees that a yield will not fail
+because of a missing tag or pending untagged coroutines,
+but it can still fail because of non-yieldable C functions
+in the stack.</p>
 
 <p>A new function <code>call</code> resumes a coroutine as if it had been
 <em>wrapped</em> by <code>wrap</code>: any uncaught errors while running the
@@ -99,6 +103,10 @@ generates a fresh tag if none is given.</p>
 this repository or clone it, then run <code>luarocks make</code> on the
 rockspec file of the next planned release.</p>
 
+<p>This module is compatible with both Lua 5.2 and Lua 5.3, but
+support on Lua 5.2 is not perfect due to the lack of a <code>lua_isyieldable</code>
+function that has the same behavior as in Lua 5.3.</p>
+
 <h2>
 <a id="module-reference" class="anchor" href="#module-reference" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Module reference</h2>
 
@@ -113,7 +121,9 @@ Returns this new coroutine. Like the standard <code>coroutine</code> library, a 
 <h3>
 <a id="isyieldabletag" class="anchor" href="#isyieldabletag" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>isyieldable(tag)</h3>
 
-<p>Returns <code>true</code> when a yield with tag <code>tag</code> will not fail, otherwise it will return false. </p>
+<p>Returns <code>true</code> when a yield with tag <code>tag</code> will not fail, otherwise it will return false.
+When running under Lua 5.2 it may return <code>true</code> even if a yield will fail, if there are non-yieldable
+C functions in the stack.</p>
 
 <h3>
 <a id="resumeco-" class="anchor" href="#resumeco-" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>resume(co, ...)</h3>
@@ -156,6 +166,10 @@ and the coroutine itself.</p>
 <p>Suspends the execution of the nearest coroutine with the tag <code>tag</code> (tag equality is checked with <code>==</code>, not <code>rawequal</code>).
 Any arguments to yield are returned by the <code>resume</code> or <code>call</code> call that last resumed this coroutine. Any interving
 coroutines are <em>stacked</em> (see <code>status</code>, above).</p>
+
+<p>If there is no coroutine with a matching tag <code>yield</code> throws an error <em>at the point of its call</em>. In Lua 5.3, it
+will also always throw correctly throw an error at the point of the call if yielding failed because of non-yieldable
+C functions. In Lua 5.2, this last error will only be thrown on the coroutine that has these C functions on the stack.</p>
 
 <h3>
 <a id="tagco" class="anchor" href="#tagco" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>tag(co)</h3>
