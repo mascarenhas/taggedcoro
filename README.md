@@ -34,7 +34,9 @@ coroutine will be propagated. But the stack is not unwound:
 you can still get a traceback of the full stack of the dead coroutine
 (including all of the coroutines that were stacked above it) using
 the new `traceback` function. It is similar to `debug.traceback`,
-except that it includes any stacked coroutines in the traceback.
+except that it includes a full traceback, following `source` to
+reach the source of the error and tracing `parent` back to the main
+thread.
 
 A new `tag` function returns the tag of a coroutine. A `parent`
 function returns the coroutine that last resumed a coroutine.
