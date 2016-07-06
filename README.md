@@ -1,4 +1,4 @@
-# Tagged Coroutines 1.0.0
+# [Tagged Coroutines 1.0.0](http://mascarenhas.github.io/taggedcoro/)
 
 This module is is a replacement to the standard `coroutine`
 module that adds *tagged* coroutines. Functions `create`
