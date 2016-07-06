@@ -218,6 +218,7 @@ static int taggedcoro_cocreate (lua_State *L) {
 }
 
 static int taggedcoro_cocreatec (lua_State *L) {
+  luaL_checktype(L, 1, LUA_TFUNCTION);
   lua_pushvalue(L, lua_upvalueindex(2));
   lua_insert(L, 1);
   return taggedcoro_cocreate(L);
@@ -376,6 +377,7 @@ static int taggedcoro_cowrap (lua_State *L) {
 
 static int taggedcoro_cowrapc (lua_State *L) {
   if(!lua_isthread(L, 1)) {
+    luaL_checktype(L, 1, LUA_TFUNCTION);
     lua_pushvalue(L, lua_upvalueindex(2));
     lua_insert(L, 1);
   }
