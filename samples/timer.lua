@@ -9,14 +9,8 @@ local template = cosmo.compile("$message[[$msg]]")
 
 local function aux(msg)
   return nlr.run(function ()
-    ex.trycatch(function ()
-      local msg = ex.throw(msg)
-      nlr.ret(msg)
-    end,
-    function (err, traceback, retry)
-      --print(traceback("error in aux"))
-      retry(err)
-    end)
+    local msg = ex.throw(msg)
+    nlr.ret(msg)
   end)
 end
 
@@ -36,9 +30,15 @@ local function iter_waiter(time, msg)
 end
 
 local function waiter(time, msg)
-  for msg in iter_waiter(time, msg) do
-    print(msg)
-  end
+  ex.trycatch(function ()
+    for msg in iter_waiter(time, msg) do
+      print(msg)
+    end
+  end,
+  function (retry, traceback, err)
+    --print(traceback("error in waiter"))
+    retry(err:upper())
+  end)
 end
 
 thread.new(waiter, 1000, "hi")

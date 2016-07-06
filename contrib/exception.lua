@@ -6,39 +6,30 @@ end
 
 local ex = {}
 
-local function trycatchk(cblk, co, dead, ...)
-  if dead then
-    return ...
+local function trycatchk(cblk, co, ok, ...)
+  if ok and coroutine.status(co) == "dead" then
+      return ...
   else
-    local resume = function (v)
-      return trycatchk(cblk, co, co(v))
+    local resume
+    if ok then
+      resume = function (v)
+        return trycatchk(cblk, co, coroutine.resume(co, v))
+      end
     end
-    local co, e = ...
     local traceback = function (msg)
-      return ex.traceback(co, msg)
+      return coroutine.traceback(co, msg)
     end
-    return cblk(e, traceback, resume)
+    return cblk(resume, traceback, ...)
   end
 end
 
 function ex.trycatch(tblk, cblk)
-  local co = coroutine.wrap(function ()
-    return true, tblk()
-  end)
-  return trycatchk(cblk, co, co())
+  local co = coroutine.create(tblk)
+  return trycatchk(cblk, co, coroutine.resume(co))
 end
 
-function ex.throw(e)
-  return coroutine.yield(false, coroutine.running(), e)
-end
-
-function ex.traceback(co, msg)
-  local tb = { msg, "stack traceback:" }
-  while co do
-    tb[#tb+1] = debug.traceback(co):gsub("^stack traceback:\n", "")
-    co = coroutine.parent(co)
-  end
-  return table.concat(tb, "\n")
+function ex.throw(...)
+  return coroutine.yield(...)
 end
 
 return ex
