@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="TaggedCoro : Tagged (nested) coroutines for Lua, implemented as a C module">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>TaggedCoro</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/mascarenhas/taggedcoro">View on GitHub</a>
+
+          <h1 id="project_title">TaggedCoro</h1>
+          <h2 id="project_tagline">Tagged (nested) coroutines for Lua, implemented as a C module</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/mascarenhas/taggedcoro/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/mascarenhas/taggedcoro/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="tagged-coroutines-100" class="anchor" href="#tagged-coroutines-100" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Tagged Coroutines 1.0.0</h1>
+
+<p>This module is is a replacement to the standard <code>coroutine</code>
+module that adds <em>tagged</em> coroutines. Functions <code>create</code>
+and <code>wrap</code> now receive a <em>tag</em> and a function, instead
+of just a function. Function <em>yield</em> now also needs a
+tag as the first argument. The tag can be any Lua value.</p>
+
+<p>A yield with a specific tag yields to the dynamically
+closest resume of a coroutine with that tag (making
+an analogy with exceptions: the coroutine is like
+a try/catch block, yield is like a throw,
+and the tag is analogous with the type of the exception).
+If there is no coroutine with the tag an error is thrown
+at the point of the yield.</p>
+
+<p>On a successful yield, any coroutine that has been passed
+through in the search for the coroutine that handled that
+yield becomes <code>stacked</code>, a new status string returned
+by the <code>status</code> function. Attempting to directly resume a
+stacked coroutine is an error. Resuming the coroutine that
+handled the yield rewinds the whole stack, resuming the
+stacked coroutines along the way until reaching and finally
+continuing from the point of the original yield.</p>
+
+<p>A failed yield is an expensive operation, so if you are
+unsure if you can yield you can use the extended <code>isyieldable</code>
+function, which now expects a tag and will return <code>true</code>
+only if yielding with this tag will succeed.</p>
+
+<p>A new function <code>call</code> resumes a coroutine as if it had been
+<em>wrapped</em> by <code>wrap</code>: any uncaught errors while running the
+coroutine will be propagated. But the stack is not unwound:
+you can still get a traceback of the full stack of the dead coroutine
+(including all of the coroutines that were stacked above it) using
+the new <code>traceback</code> function. It is similar to <code>debug.traceback</code>,
+except that it includes any stacked coroutines in the traceback.</p>
+
+<p>A new <code>tag</code> function returns the tag of a coroutine. A <code>parent</code>
+function returns the coroutine that last resumed a coroutine.
+A <code>source</code> function returns, for a given coroutine,
+either the coroutine where the last <code>yield</code> came from,
+in case of a <code>suspended</code> coroutine, or
+where an error originated, in case of a <code>dead</code> coroutine. You can
+use these two functions to walk a <code>dead</code> stack of coroutines
+with the <code>debug</code> functions in case <code>traceback</code> is not enough.</p>
+
+<p>Finally, the function <code>fortag</code> receives a tag and returns a
+set of tagged coroutine functions specialized for that tag.
+For compatibility with <a href="https://github.com/saucisson/lua-coronest">lua-coronest</a>
+there is also a <code>make</code> function that is like <code>fortag</code> except it
+generates a fresh tag if none is given.</p>
+
+<p>Install it by running <code>luarocks make</code> on the provided
+rockspec file. The <code>contrib</code> folder has sample libraries
+that implement some abstractions on top of coroutines that
+can be freely composed with tagged coroutines. The
+<code>samples</code> folder has sample scripts that exercise
+these higher-level libraries. Some of them depend on
+the <a href="https://github.com/mascarenhas/thread">thread</a>
+library and on a branch of <a href="https://github.com/mascarenhas/cosmo/tree/taggedcoro">Cosmo</a>
+that requires tagged coroutines.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">TaggedCoro maintained by <a href="https://github.com/mascarenhas">mascarenhas</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
