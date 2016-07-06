@@ -68,7 +68,9 @@ coroutine will be propagated. But the stack is not unwound:
 you can still get a traceback of the full stack of the dead coroutine
 (including all of the coroutines that were stacked above it) using
 the new <code>traceback</code> function. It is similar to <code>debug.traceback</code>,
-except that it includes any stacked coroutines in the traceback.</p>
+except that it includes a full traceback, following <code>source</code> to
+reach the source of the error and tracing <code>parent</code> back to the main
+thread.</p>
 
 <p>A new <code>tag</code> function returns the tag of a coroutine. A <code>parent</code>
 function returns the coroutine that last resumed a coroutine.
@@ -170,24 +172,25 @@ Returns <code>nil</code> if <code>co</code> is an untagged coroutine, or if the 
 <a id="sourceco" class="anchor" href="#sourceco" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>source(co)</h3>
 
 <p>If the tagged coroutine <code>co</code> is suspended, returns the tagged coroutine that called <code>yield</code>. If <code>co</code>
-is dead due to an error, returns the tagged coroutine where the error originated. Returns <code>nil</code> in
+is dead due to an error, returns the tagged coroutine where the error originated. If <code>co</code> is running
+but caught an error in another coroutine (through <code>resume</code>, <code>pcall</code>, or <code>xpcall</code>), <code>source</code> also
+returns the tagged coroutine where the error originated. Returns <code>nil</code> in
 all other cases (including if <code>co</code> is an untagged coroutine).</p>
 
 <p>You can use <code>source</code> and <code>parent</code> to walk the stack (using the <code>debug</code> functions) after an error occurs.
-The <code>traceback</code> function below uses this to construct a traceback string analogous to the traceback returned
-by <code>debug.traceback</code>.</p>
+The <code>traceback</code> function below uses this to construct a full traceback string analogous to the traceback returned
+by <code>debug.traceback</code> but for the full coroutine stack, starting from the coroutine that originated the error.</p>
 
 <h3>
 <a id="tracebackco-message--level" class="anchor" href="#tracebackco-message--level" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>traceback([co,] [message [, level]])</h3>
 
 <p>If the first argument is a coroutine, uses the <code>source</code> (see above) of this coroutine as the start
 of the traceback, otherwise uses the <code>source</code>  of the running coroutine as the start. The traceback
-ends when reaching the coroutine passed as the first argument, or the running coroutine. If a message
-is present it is appended to the beginning of the traceback. An optional level number tells at which level
-to start the traceback, on the starting coroutine (default is 1, the top of the call stack). Returns
-a string with a traceback of the call stack of all the coroutines involved, using the <code>parent</code> to
-trace back from the starting coroutine. Aborts the traceback and leaves a message in it if a
-<code>parent</code> link is broken.</p>
+ends after tracing the main coroutine (or after tracing an untagged coroutine; in this case there will
+be a message indicating this in the traceback). If a message is present it is appended to the beginning
+of the traceback. An optional level number tells at which level to start the traceback, on the starting
+coroutine (default is 1, the top of the call stack). Returns a string with a traceback of the call stack
+of all coroutines from the starting one, using <code>parent</code> to trace back from it.</p>
 
 <h3>
 <a id="fortagtag" class="anchor" href="#fortagtag" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>fortag(tag)</h3>
