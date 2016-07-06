@@ -4,11 +4,11 @@
   <head>
     <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="description" content="TaggedCoro : Tagged (nested) coroutines for Lua, implemented as a C module">
+    <meta name="description" content="TaggedCoro 1.0.0 : Tagged (nested) coroutines for Lua, implemented as a C module">
 
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
-    <title>TaggedCoro</title>
+    <title>TaggedCoro 1.0.0</title>
   </head>
 
   <body>
@@ -18,7 +18,7 @@
         <header class="inner">
           <a id="forkme_banner" href="https://github.com/mascarenhas/taggedcoro">View on GitHub</a>
 
-          <h1 id="project_title">TaggedCoro</h1>
+          <h1 id="project_title">TaggedCoro 1.0.0</h1>
           <h2 id="project_tagline">Tagged (nested) coroutines for Lua, implemented as a C module</h2>
 
             <section id="downloads">
@@ -31,8 +31,8 @@
     <!-- MAIN CONTENT -->
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
-        <h1>
-<a id="tagged-coroutines-100" class="anchor" href="#tagged-coroutines-100" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Tagged Coroutines 1.0.0</h1>
+        <h2>
+<a id="overview" class="anchor" href="#overview" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Overview</h2>
 
 <p>This module is is a replacement to the standard <code>coroutine</code>
 module that adds <em>tagged</em> coroutines. Functions <code>create</code>
@@ -85,8 +85,134 @@ For compatibility with <a href="https://github.com/saucisson/lua-coronest">lua-c
 there is also a <code>make</code> function that is like <code>fortag</code> except it
 generates a fresh tag if none is given.</p>
 
-<p>Install it by running <code>luarocks make</code> on the provided
-rockspec file. The <code>contrib</code> folder has sample libraries
+<h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installation</h2>
+
+<p>Get the latest release from <a href="http://luarocks.org">LuaRocks</a>:</p>
+
+<pre><code>luarocks install taggedcoro
+</code></pre>
+
+<p>If you want to install from source, download a tarball/zip of
+this repository or clone it, then run <code>luarocks make</code> on the
+rockspec file of the next planned release.</p>
+
+<h2>
+<a id="module-reference" class="anchor" href="#module-reference" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Module reference</h2>
+
+<p>All the functions below are exported by the module.</p>
+
+<h3>
+<a id="createtag-f" class="anchor" href="#createtag-f" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>create(tag, f)</h3>
+
+<p>Creates a new tagged coroutine, with tag <code>tag</code> (any Lua value except <code>nil</code>) and body <code>f</code> (must be a function).
+Returns this new coroutine. Like the standard <code>coroutine</code> library, a coroutine is an object with type "thread".</p>
+
+<h3>
+<a id="isyieldabletag" class="anchor" href="#isyieldabletag" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>isyieldable(tag)</h3>
+
+<p>Returns <code>true</code> when a yield with tag <code>tag</code> will not fail, otherwise it will return false. </p>
+
+<h3>
+<a id="resumeco-" class="anchor" href="#resumeco-" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>resume(co, ...)</h3>
+
+<p>Starts or continues the execution of the tagged coroutine <code>co</code>. It works just like <a href="https://www.lua.org/manual/5.3/manual.html#pdf-coroutine.resume"><code>coroutine.resume</code></a>. </p>
+
+<h3>
+<a id="callco-" class="anchor" href="#callco-" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>call(co, ...)</h3>
+
+<p>Starts or continues the execution of the tagged coroutine <code>co</code>, but any errors are propagated, and the
+initial boolean is not returned in case of success (either because the coroutine yielded or it finished
+running). The source of the error is still recorded (see <code>source</code> below) so the stack can be inspected
+later.</p>
+
+<h3>
+<a id="running" class="anchor" href="#running" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>running()</h3>
+
+<p>Returns the running coroutine plus a boolean, true when the running coroutine is the main one.</p>
+
+<h3>
+<a id="statusco" class="anchor" href="#statusco" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>status(co)</h3>
+
+<p>Returns the status of the (tagged or not) coroutine <code>co</code>, as a string. Returns the same status strings
+as <a href="https://www.lua.org/manual/5.3/manual.html#pdf-coroutine.status"><code>coroutine.status</code></a>, plus a new one
+for tagged coroutines: "stacked". A coroutine is "stacked" if it has been suspended by a yield but is
+not the coroutine that handled that yield (because of a different tag). A "stacked" coroutine cannot
+be resumed directly.</p>
+
+<h3>
+<a id="wrapco-or-wraptag-f" class="anchor" href="#wrapco-or-wraptag-f" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>wrap(co) or wrap(tag, f)</h3>
+
+<p>If called with a tagged coroutine, returns a function that calls <code>call</code> on this coroutine
+plus any arguments to the function. If called with a tag <code>tag</code> and a function <code>f</code>, creates
+a new coroutine and then returns both a function that calls <code>call</code> on this coroutine
+and the coroutine itself.</p>
+
+<h3>
+<a id="yieldtag-" class="anchor" href="#yieldtag-" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>yield(tag, ...)</h3>
+
+<p>Suspends the execution of the nearest coroutine with the tag <code>tag</code> (tag equality is checked with <code>==</code>, not <code>rawequal</code>).
+Any arguments to yield are returned by the <code>resume</code> or <code>call</code> call that last resumed this coroutine. Any interving
+coroutines are <em>stacked</em> (see <code>status</code>, above).</p>
+
+<h3>
+<a id="tagco" class="anchor" href="#tagco" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>tag(co)</h3>
+
+<p>Returns the tag associated with the tagged coroutine <code>co</code>, or <code>nil</code> if <code>co</code> is an untagged coroutine.</p>
+
+<h3>
+<a id="parentco" class="anchor" href="#parentco" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>parent(co)</h3>
+
+<p>Returns the coroutine that last resumed the tagged coroutine <code>co</code> (through either <code>resume</code> or <code>call</code>).
+Returns <code>nil</code> if <code>co</code> is an untagged coroutine, or if the coroutine has been created but not started yet.</p>
+
+<h3>
+<a id="sourceco" class="anchor" href="#sourceco" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>source(co)</h3>
+
+<p>If the tagged coroutine <code>co</code> is suspended, returns the tagged coroutine that called <code>yield</code>. If <code>co</code>
+is dead due to an error, returns the tagged coroutine where the error originated. Returns <code>nil</code> in
+all other cases (including if <code>co</code> is an untagged coroutine).</p>
+
+<p>You can use <code>source</code> and <code>parent</code> to walk the stack (using the <code>debug</code> functions) after an error occurs.
+The <code>traceback</code> function below uses this to construct a traceback string analogous to the traceback returned
+by <code>debug.traceback</code>.</p>
+
+<h3>
+<a id="tracebackco-message--level" class="anchor" href="#tracebackco-message--level" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>traceback([co,] [message [, level]])</h3>
+
+<p>If the first argument is a coroutine, uses the <code>source</code> (see above) of this coroutine as the start
+of the traceback, otherwise uses the <code>source</code>  of the running coroutine as the start. The traceback
+ends when reaching the coroutine passed as the first argument, or the running coroutine. If a message
+is present it is appended to the beginning of the traceback. An optional level number tells at which level
+to start the traceback, on the starting coroutine (default is 1, the top of the call stack). Returns
+a string with a traceback of the call stack of all the coroutines involved, using the <code>parent</code> to
+trace back from the starting coroutine. Aborts the traceback and leaves a message in it if a
+<code>parent</code> link is broken.</p>
+
+<h3>
+<a id="fortagtag" class="anchor" href="#fortagtag" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>fortag(tag)</h3>
+
+<p>Returns a table containing all of the functions above (except <code>fortag</code> itself), with the four functions
+that expect a tag (<code>create</code>, <code>wrap</code>, <code>yield</code>, and <code>isyieldable</code>) specialized for the tag <code>tag</code> (the signatures
+of these functions do not have a <code>tag</code> parameter).</p>
+
+<h3>
+<a id="maketag" class="anchor" href="#maketag" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>make([tag])</h3>
+
+<p>Like <code>fortag</code>, but generated a fresh tag (an new empty table) if none is given.</p>
+
+<h3>
+<a id="install" class="anchor" href="#install" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>install()</h3>
+
+<p>Installs a metatable for all coroutines (tagged and untagged, because all coroutines must share a single metatable).
+After installing this metatable every coroutine has <code>resume</code>, <code>call</code>, <code>status</code>, <code>tag</code>, <code>parent</code>, and <code>source</code> as methods.
+Every coroutine can also be called as if it were a function, with the same effect as its <code>call</code> method. Returns the
+module (so you can both require the module and install the metatable in one step: <code>local tc = require("taggedcoro").install()</code>).</p>
+
+<h2>
+<a id="extras" class="anchor" href="#extras" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Extras</h2>
+
+<p>The <code>contrib</code> folder has sample libraries
 that implement some abstractions on top of coroutines that
 can be freely composed with tagged coroutines. The
 <code>samples</code> folder has sample scripts that exercise
@@ -94,13 +220,19 @@ these higher-level libraries. Some of them depend on
 the <a href="https://github.com/mascarenhas/thread">thread</a>
 library and on a branch of <a href="https://github.com/mascarenhas/cosmo/tree/taggedcoro">Cosmo</a>
 that requires tagged coroutines.</p>
+
+<h2>
+<a id="contact" class="anchor" href="#contact" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Contact</h2>
+
+<p>Please open an issue on <a href="http://github.com/mascarenhas/taggedcoro">github</a> if you would
+like to report any bugs, or suggest improvements.</p>
       </section>
     </div>
 
     <!-- FOOTER  -->
     <div id="footer_wrap" class="outer">
       <footer class="inner">
-        <p class="copyright">TaggedCoro maintained by <a href="https://github.com/mascarenhas">mascarenhas</a></p>
+        <p class="copyright">TaggedCoro 1.0.0 maintained by <a href="https://github.com/mascarenhas">mascarenhas</a></p>
         <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
       </footer>
     </div>
