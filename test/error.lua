@@ -19,7 +19,7 @@ local function two()
 end
 
 local cotwo = coroutine.create("two", two)
-local ctwo = coroutine.wrap("two", cotwo)
+local ctwo = coroutine.wrap(cotwo)
 --local ctwo = wrap(two)
 --two()
 print("main", coroutine.running())

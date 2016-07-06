@@ -205,15 +205,10 @@ static int taggedcoro_cocreate (lua_State *L) {
     lua_pushliteral(L, "coroutine");
     lua_replace(L, 1);
   }
-  if(lua_isthread(L, 2)) {
-    NL = lua_tothread(L, 2);
-  } else if(lua_isfunction(L, 2)) {
-    NL = lua_newthread(L);
-    lua_pushvalue(L, 2);  /* copy function to top */
-    lua_xmove(L, NL, 1);  /* move function from L to NL */
-  } else {
-    return luaL_argerror(L, 2, "expected function or thread");
-  }
+  luaL_checktype(L, 2, LUA_TFUNCTION);
+  NL = lua_newthread(L);
+  lua_pushvalue(L, 2);  /* copy function to top */
+  lua_xmove(L, NL, 1);  /* move function from L to NL */
   lua_pushvalue(L, -1); /* dup NL */
   lua_createtable(L, 4, 0); /* meta = { <tag>, <stacked>, <parent>, <yielder> } */
   lua_pushvalue(L, 1); /* copy tag to top */
@@ -360,7 +355,13 @@ static int taggedcoro_auxwrap (lua_State *L) {
 }
 
 static int taggedcoro_cowrap (lua_State *L) {
-  taggedcoro_cocreate(L);
+  if(lua_isthread(L, 1)) {
+    lua_pushvalue(L, 1);
+    lua_createtable(L, 4, 0); /* meta = { <tag>, <stacked>, <parent>, <yielder> } */
+    lua_pushvalue(L, 1); /* copy tag to top */
+    lua_rawseti(L, -2, 1); /* meta[1] = tag */
+    lua_rawset(L, lua_upvalueindex(1)); /* coroset[co] = meta */
+  } else taggedcoro_cocreate(L);
   lua_pushvalue(L, lua_upvalueindex(1));
   lua_insert(L, -2);
   lua_pushcclosure(L, taggedcoro_auxwrap, 2);
