@@ -5,9 +5,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "lua.h"
-#include "lauxlib.h"
-#include "lualib.h"
+#include "compat-5.3.h"
 
 /* exports */
 LUAMOD_API int luaopen_taggedcoro (lua_State *L);
@@ -61,9 +59,9 @@ static int moveyielded (lua_State *L, lua_State *co) {
   return nres; /* return yielded values */
 }
 
-static int auxcallk (lua_State *L, int status, lua_KContext ctx) {
+LUA_KFUNCTION(auxcallk) {
   /* stack: coroset[co], co, tag */
-  lua_State *co = (lua_State*)ctx;
+  lua_State *co = lua_tothread(L, 2);
   int narg;
   if(lua_gettop(L) > 3) {
     narg = 2;
@@ -94,7 +92,7 @@ static int auxcallk (lua_State *L, int status, lua_KContext ctx) {
         lua_pop(L, 1);
         lua_pushboolean(L, 1);
         lua_rawseti(L, 1, 2); /* coroset[co].stacked = true */
-        return lua_yieldk(L, 3, (lua_KContext)co, auxcallk);
+        return lua_yieldk(L, 3, 0, auxcallk);
       } else {
         lua_pop(L, 1);
         lua_settop(co, 0); /* clear coroutine stack */
@@ -126,6 +124,7 @@ static int auxcallk (lua_State *L, int status, lua_KContext ctx) {
     }
     lua_pop(L, 1); /* coroset[L] */
     lua_xmove(co, L, 1); /* move error message */
+    lua_settop(co, 0);
     return lua_error(L);
   }
 }
@@ -141,7 +140,7 @@ static int auxcall (lua_State *L, lua_State *co, lua_State *yco, int status, int
   lua_rawseti(L, 1, 3); /* coroset[co].parent = <running coro> */
   lua_rawgeti(L, 1, 1); /* push tag */
   /* stack: coroset[co], co, tag */
-  int r = auxcallk(L, status, (lua_KContext)co);
+  int r = auxcallk(L, status, 0);
   while(r == -1) { /* trampoline */
     lua_pushlightuserdata(co, &getco);
     if(lua_pushthread(L)) {
@@ -152,7 +151,7 @@ static int auxcall (lua_State *L, lua_State *co, lua_State *yco, int status, int
       lua_pushliteral(co, "attempt to yield across a C-call boundary");
     }
     lua_pop(L, 4);
-    r = auxcallk(L, LUA_YIELD, (lua_KContext)co);
+    r = auxcallk(L, LUA_YIELD, 0);
   }
   return r;
 }
@@ -161,6 +160,10 @@ static int taggedcoro_cocall (lua_State *L) {
   lua_State *co = getco(L);
   if (lua_status(co) == LUA_OK && lua_gettop(co) == 0) {
     return luaL_error(L, "cannot resume dead coroutine");
+  }
+  lua_Debug ar;
+  if (lua_status(co) == LUA_OK && lua_getstack(co, 0, &ar) > 0) {  /* does it have frames? */
+    return luaL_error(L, "cannot resume non-suspended coroutine");
   }
   lua_pushvalue(L, 1); /* copy co to top */
   if(lua_rawget(L, lua_upvalueindex(1)) == LUA_TNIL) { /* coroset[co] */
@@ -180,7 +183,7 @@ static int taggedcoro_cocall (lua_State *L) {
   }
 }
 
-static int resumek(lua_State *L, int status, lua_KContext ctx) {
+LUA_KFUNCTION(resumek) {
   if (status != LUA_OK && status != LUA_YIELD) {  /* error? */
     lua_pushboolean(L, 0);  /* first result (false) */
     lua_pushvalue(L, -2);  /* error message */
@@ -224,7 +227,7 @@ static int taggedcoro_cocreatec (lua_State *L) {
   return taggedcoro_cocreate(L);
 }
 
-static int yieldk(lua_State *L, int status, lua_KContext ctx) {
+LUA_KFUNCTION(yieldk) {
   if(lua_islightuserdata(L, 1) && (&getco == lua_topointer(L, 1))) {
     return lua_error(L);
   }
