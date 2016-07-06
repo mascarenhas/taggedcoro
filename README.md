@@ -6,13 +6,13 @@ and `wrap` now receive a *tag* and a function, instead
 of just a function. Function *yield* now also needs a
 tag as the first argument. The tag can be any Lua value.
 
-A yield with a specific tag yields to the dynamically
-closest resume of a coroutine with that tag (making
+A `yield` with a specific tag yields to the dynamically
+closest `resume` of a coroutine with that tag (making
 an analogy with exceptions: the coroutine is like
-a try/catch block, yield is like a throw,
+a try/catch block, `yield` is like a throw,
 and the tag is analogous with the type of the exception).
 If there is no coroutine with the tag an error is thrown
-at the point of the yield.
+at the point of the `yield`.
 
 On a successful yield, any coroutine that has been passed
 through in the search for the coroutine that handled that
@@ -23,10 +23,14 @@ handled the yield rewinds the whole stack, resuming the
 stacked coroutines along the way until reaching and finally
 continuing from the point of the original yield.
 
-A failed yield is an expensive operation, so if you are
+A failed yield can be an expensive operation, so if you are
 unsure if you can yield you can use the extended `isyieldable`
 function, which now expects a tag and will return `true`
-only if yielding with this tag will succeed.
+only if yielding with this tag will succeed. For Lua 5.2
+`isyieldable` only guarantees that a yield will not fail
+because of a missing tag or pending untagged coroutines,
+but it can still fail because of non-yieldable C functions
+in the stack.
 
 A new function `call` resumes a coroutine as if it had been
 *wrapped* by `wrap`: any uncaught errors while running the
