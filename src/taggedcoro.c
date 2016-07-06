@@ -278,8 +278,8 @@ static int taggedcoro_costatus (lua_State *L) {
     switch (lua_status(co)) {
       case LUA_YIELD:
         lua_pushvalue(L, 1);
-        lua_rawget(L, lua_upvalueindex(1));
-        if(lua_rawgeti(L, -1, 2) == LUA_TNIL) {
+        if((lua_rawget(L, lua_upvalueindex(1)) == LUA_TNIL) ||
+           (lua_rawgeti(L, -1, 2) == LUA_TNIL)) {
           lua_pushliteral(L, "suspended");
         } else {
           lua_pushliteral(L, "stacked");
