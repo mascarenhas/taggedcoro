@@ -9,10 +9,13 @@ local function assert(x)
 end
 
 local usetc = true
+local tag = "notfound"
 
 local function zero()
   if usetc then
-    tc.yield("notfound", "zero")
+    assert(tc.isyieldable("one"))
+    assert(not tc.isyieldable("notfound"))
+    tc.yield(tag, "zero")
   else
     coroutine.yield("zero")
   end
@@ -32,8 +35,32 @@ do
   local ctwo, cotwo = tc.wrap("two", two)
   local ok, err = tc.resume(cotwo)
   assert(not ok)
+  assert(tc.tag(cotwo) == "two")
+  assert(tc.parent(cotwo) == tc.running())
+  assert(tc.parent(tc.source(cotwo)) == cotwo)
+  assert(tc.source(tc.running()) == tc.source(cotwo))
+  assert(tc.tag(tc.source(cotwo)) == "one")
   assert(err:match("tag notfound not found"))
   assert(tc.traceback() == tc.traceback(cotwo))
+end
+
+do
+  usetc = true
+  tag = "two"
+  local ctwo, cotwo = tc.wrap("two", two)
+  local ok, err = tc.resume(cotwo)
+  assert(ok)
+  assert(tc.tag(cotwo) == "two")
+  assert(tc.parent(cotwo) == tc.running())
+  assert(tc.parent(tc.source(cotwo)) == cotwo)
+  assert(tc.source(tc.running()) ~= tc.source(cotwo))
+  assert(tc.tag(tc.source(cotwo)) == "one")
+  assert(tc.status(tc.source(cotwo)) == "stacked")
+  assert(err:match("zero"))
+  local ok, err = tc.resume(tc.source(cotwo))
+  assert(not ok)
+  assert(err:match("stacked"))
+  tag = "notfound"
 end
 
 do
@@ -41,16 +68,29 @@ do
   local ctwo, cotwo = tc.wrap("two", two)
   local ok, err = tc.resume(cotwo)
   assert(not ok)
+  assert(tc.tag(cotwo) == "two")
+  assert(tc.parent(cotwo) == tc.running())
+  assert(tc.source(cotwo) == cotwo)
+  assert(tc.source(tc.running()) == cotwo)
   assert(err:match("attempt to yield"))
   assert(tc.traceback() == tc.traceback(cotwo))
 end
 
 do
-  usetc = true
   local cotwo = coroutine.create(two)
   local ok, err = tc.resume(cotwo)
   assert(not ok)
-  assert(err:match("untagged"))
+  assert(not tc.source(cotwo))
+  assert(err:match("attempt to resume untagged"))
+end
+
+do
+  usetc = true
+  local cotwo = coroutine.create(two)
+  local ok, err = coroutine.resume(cotwo)
+  assert(not ok)
+  assert(not tc.source(cotwo))
+  assert(err:match("attempt to yield across untagged"))
 end
 
 do
@@ -60,6 +100,11 @@ do
     return tc.traceback(msg, 1)
   end)
   assert(not ok)
+  assert(tc.tag(cotwo) == "two")
+  assert(tc.parent(cotwo) == tc.running())
+  assert(tc.parent(tc.source(cotwo)) == cotwo)
+  assert(tc.source(tc.running()) == tc.source(cotwo))
+  assert(tc.tag(tc.source(cotwo)) == "one")
   assert(tb:match("tag notfound not found"))
   assert(tc.traceback() ~= tb)
 end
@@ -71,6 +116,10 @@ do
     return tc.traceback(msg, 1)
   end)
   assert(not ok)
+  assert(tc.tag(cotwo) == "two")
+  assert(tc.parent(cotwo) == tc.running())
+  assert(tc.source(cotwo) == cotwo)
+  assert(tc.source(tc.running()) == cotwo)
   assert(tb:match("attempt to yield"))
   assert(tc.traceback() ~= tb)
 end
@@ -82,7 +131,7 @@ do
     return tc.traceback(msg, 1)
   end)
   assert(not ok)
-  assert(tb:match("untagged"))
+  assert(tb:match("attempt to yield across untagged"))
 end
 
 print()

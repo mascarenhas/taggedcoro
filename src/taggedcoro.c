@@ -133,9 +133,6 @@ static int auxcallk (lua_State *L, int status, lua_KContext ctx) {
 static int auxcall (lua_State *L, lua_State *co, lua_State *yco, int status, int narg) {
   /* stack: coroset[co], co, <args> */
   luaL_checkstack(yco, narg, "too many arguments to resume");
-  if (lua_status(co) == LUA_OK && lua_gettop(co) == 0) {
-    return luaL_error(L, "cannot resume dead coroutine");
-  }
   if(lua_rawgeti(L, 1, 2) != LUA_TNIL) { /* coroset[co].stacked? */
     return luaL_error(L, "cannot resume stacked coroutine");
   } else lua_pop(L, 1);
@@ -162,6 +159,9 @@ static int auxcall (lua_State *L, lua_State *co, lua_State *yco, int status, int
 
 static int taggedcoro_cocall (lua_State *L) {
   lua_State *co = getco(L);
+  if (lua_status(co) == LUA_OK && lua_gettop(co) == 0) {
+    return luaL_error(L, "cannot resume dead coroutine");
+  }
   lua_pushvalue(L, 1); /* copy co to top */
   if(lua_rawget(L, lua_upvalueindex(1)) == LUA_TNIL) { /* coroset[co] */
     return luaL_argerror(L, 1, "attempt to resume untagged coroutine");
