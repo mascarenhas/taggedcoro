@@ -1,8 +1,4 @@
-local coroutine = require "coroutine"
-local ok, taggedcoro = pcall(require, "taggedcoro")
-if ok then
-  coroutine = taggedcoro.fortag("exception")
-end
+local coroutine = require("taggedcoro").fortag("exception")
 
 local ex = {}
 

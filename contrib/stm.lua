@@ -1,8 +1,4 @@
-local coroutine = require "coroutine"
-local ok, taggedcoro = pcall(require, "taggedcoro")
-if ok then
-  coroutine = taggedcoro.fortag("stm")
-end
+local coroutine = require("taggedcoro").fortag("stm")
 
 local thread = require "thread"
 
