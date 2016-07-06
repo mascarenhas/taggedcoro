@@ -499,7 +499,6 @@ static void auxtraceback (lua_State *L, const char *msg, int lvl) {
         lua_concat(L, lua_gettop(L) - top);
       }
     }
-    if(lua_rawequal(L, top, top-1)) break; /* from == to */
     lua_pushvalue(L, top); /* get current "from" */
     if(lua_rawget(L, lua_upvalueindex(1)) == LUA_TNIL) { /* coroset[from] */
       lua_pop(L, 1);
@@ -508,7 +507,6 @@ static void auxtraceback (lua_State *L, const char *msg, int lvl) {
     }
     if(lua_rawgeti(L, -1, 3) == LUA_TNIL) {
       lua_pop(L, 2);
-      lua_pushliteral(L, "\n\tbroken parent link, aborting traceback");
       break;
     }
     lua_replace(L, top); /* replace "from" */
@@ -518,9 +516,9 @@ static void auxtraceback (lua_State *L, const char *msg, int lvl) {
   lua_concat(L, lua_gettop(L) - top);
 }
 
-static void pushthreads (lua_State *L, int *arg) {
+static void pushsource (lua_State *L, int *arg) {
   lua_settop(L, 3);
-  /* push "to" thread */
+  /* push passed thread or running thread */
   if (lua_isthread(L, 1)) {
     *arg = 1;
     lua_pushvalue(L, 1);
@@ -529,19 +527,20 @@ static void pushthreads (lua_State *L, int *arg) {
     *arg = 0;
     lua_pushthread(L);
   }
-  lua_pushvalue(L, -1); /* dup "to" thread to get "from" thread */
+  lua_pushvalue(L, -1); /* we may need the top */
   if(lua_rawget(L, lua_upvalueindex(1)) != LUA_TNIL) { /* coroset[co] */
     if(lua_rawgeti(L, -1, 4) == LUA_TNIL) { /* coroset[co].source is "from" thread */
-      lua_pop(L, 1);
-      lua_pushvalue(L, -2); /* "to" = "from" if no source present */
+      lua_pop(L, 2); /* remove nil and coroset[co], use saved top */
+    } else { /* stack: ... saved_top coroset[co] source */
+      lua_insert(L, -3);
+      lua_pop(L, 2);
     }
-    lua_remove(L, -2); /* remove coroset[co] from stack */
-  } else lua_pop(L, 1); /* remove nil, "to" = "from" if untagged */
+  } else lua_pop(L, 1); /* remove nil, use saved top */
 }
 
 static int taggedcoro_traceback (lua_State *L) {
   int arg;
-  pushthreads(L, &arg); /* push to and from threads to top */
+  pushsource(L, &arg); /* push starting thread to top */
   const char *msg = luaL_optstring(L, arg + 1, NULL);
   int level = (int)luaL_optinteger(L, arg + 2, 1);
   auxtraceback(L, msg, level);
