@@ -17,7 +17,10 @@ local function zero()
     assert(not tc.isyieldable("notfound"))
     tc.yield(tag, "zero")
   else
-    coroutine.yield("zero")
+    local ok, err = coroutine.yield("zero")
+    assert(not ok)
+    assert(err:match("untagged coroutine not found"))
+    error(err)
   end
 end
 
@@ -70,9 +73,9 @@ do
   assert(not ok)
   assert(tc.tag(cotwo) == "two")
   assert(tc.parent(cotwo) == tc.running())
-  assert(tc.source(cotwo) == cotwo)
-  assert(tc.source(tc.running()) == cotwo)
-  assert(err:match("attempt to yield"))
+  assert(tc.parent(tc.source(cotwo)) == cotwo)
+  assert(tc.source(tc.running()) == tc.source(cotwo))
+  assert(err:match("untagged coroutine not found"))
   assert(tc.traceback() == tc.traceback(cotwo))
 end
 
@@ -118,9 +121,9 @@ do
   assert(not ok)
   assert(tc.tag(cotwo) == "two")
   assert(tc.parent(cotwo) == tc.running())
-  assert(tc.source(cotwo) == cotwo)
-  assert(tc.source(tc.running()) == cotwo)
-  assert(tb:match("attempt to yield"))
+  assert(tc.parent(tc.source(cotwo)) == cotwo)
+  assert(tc.source(tc.running()) == tc.source(cotwo))
+  assert(tb:match("untagged coroutine not found"))
   assert(tc.traceback() ~= tb)
 end
 

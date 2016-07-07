@@ -26,7 +26,25 @@ continuing from the point of the original yield.
 A failed yield can be an expensive operation, so if you are
 unsure if you can yield you can use the extended `isyieldable`
 function, which now expects a tag and will return `true`
-only if yielding with this tag will succeed. 
+only if yielding with this tag will succeed.
+
+The function `coroutine.yield` is an *untagged* yield. A tagged
+coroutine passes an untagged yield along, unless its parent
+is the main coroutine: in this case, the yield is supressed, and
+the source resumes from the untagged yield with the call to yield
+returning `nil` and `"untagged coroutine not found"`. Unfortunately
+there is no way to make the untagged yield fail as if it had tried
+to yield outside a coroutine.
+
+When an untagged yield reaches an untagged parent, the parent will
+suspend as if the yield was intended for it; when the parent
+resumes the whole stack will be resumed, ultimately resuming
+from the point of the untagged yield. This way you can
+have a stack of tagged coroutines on top of an untagged coroutine
+(allowing the use of existing coroutine schedulers, for example).
+
+A tagged yield that reaches an untagged coroutine fails at the
+point of the call to `yield` as if it had reached the main coroutine.
 
 A new function `call` resumes a coroutine as if it had been
 *wrapped* by `wrap`: any uncaught errors while running the

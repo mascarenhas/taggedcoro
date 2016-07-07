@@ -64,6 +64,19 @@ static int moveyielded (lua_State *L, lua_State *co) {
   return nres; /* return yielded values */
 }
 
+LUA_KFUNCTION(auxcallk); /* forward declaration */
+
+LUA_KFUNCTION(untaggedk) {
+  /* stack: coroset[co], co, tag, <args> */
+  lua_rawgeti(L, 1, 4); /* push yielder */
+  lua_pushnil(L);
+  lua_rawseti(L, 1, 4); /* clear coroset[co].yielder */
+  lua_State *yco = lua_tothread(L, -1);
+  lua_pop(L, 1);
+  lua_xmove(L, yco, lua_gettop(L) - 3);
+  return auxcallk(L, status, ctx);
+}
+
 LUA_KFUNCTION(auxcallk) {
   /* stack: coroset[co], co, tag */
   lua_State *co = lua_tothread(L, 2);
@@ -82,9 +95,13 @@ LUA_KFUNCTION(auxcallk) {
     return moveyielded(L, co);
   } else if(status == LUA_YIELD) {
     if(!lua_islightuserdata(co, -1) || (&getco != lua_topointer(co, -1))) {
-      return luaL_error(L, "attempt to yield to tagged coroutine with regular yield");
+      /* yield from coroutine.yield, pretend it was tagged yield */
+      lua_pushlightuserdata(L, &getco); /* tag */
+      lua_pushvalue(L, 2);              /* i am the yielder */
+      lua_pushlightuserdata(L, &getco); /* sentinel */
+    } else {
+      lua_xmove(co, L, 3); /* move tag, yielder, sentinel */
     }
-    lua_xmove(co, L, 3); /* move tag, yielder, sentinel */
     /* stack: coroset[co], co, tag, ytag, yielder, sentinel */
     if(lua_compare(L, -4, -3, LUA_OPEQ)) { /* yield was for me */
       lua_pop(L, 1); /* pop sentinel */
@@ -98,10 +115,18 @@ LUA_KFUNCTION(auxcallk) {
         lua_pushboolean(L, 1);
         lua_rawseti(L, 1, 2); /* coroset[co].stacked = true */
         return lua_yieldk(L, 3, 0, auxcallk);
-      } else {
+      } else if(!lua_islightuserdata(L, -4) || (&getco != lua_topointer(L, -4))) { /* not "untagged" tag */
         lua_pop(L, 1);
         lua_settop(co, 0); /* clear coroutine stack */
         return -1; /* return code for trampoline */
+      } else { /* "untagged tag" */
+        lua_pop(L, 2); /* pop coroset[parent] and sentinel */
+        lua_pushboolean(L, 1);
+        lua_rawseti(L, 1, 2); /* coroset[co].stacked = true */
+        lua_State *yco = lua_tothread(L, -1);
+        lua_rawseti(L, 1, 4); /* set source in co */
+        lua_pop(L, 1); /* pop ytag */
+        return lua_yieldk(L, moveyielded(L, yco), 0, untaggedk); /* move yielded values and pass them */
       }
     } else { /* end of the line */
       lua_settop(co, 0); /* clear coroutine stack */
@@ -149,7 +174,13 @@ static int auxcall (lua_State *L, lua_State *co, lua_State *yco, int status, int
   while(r == -1) { /* trampoline */
     lua_pushlightuserdata(co, &getco);
     if(lua_pushthread(L)) {
-      lua_pushfstring(co, "coroutine for tag %s not found", lua_tostring(L, 4));
+      if(lua_islightuserdata(L, 4)) {
+        lua_pop(co, 1);
+        lua_pushnil(co);
+        lua_pushfstring(co, "untagged coroutine not found", lua_tostring(L, 4));
+      } else {
+        lua_pushfstring(co, "coroutine for tag %s not found", lua_tostring(L, 4));
+      }
     } else if(lua_isyieldable(L)) {
       lua_pushfstring(co, "attempt to yield across untagged coroutine");
     } else {
@@ -324,21 +355,21 @@ static int taggedcoro_yieldable (lua_State *L) {
   }
   lua_pushthread(L);
   while(1) { /* loop until parent is untagged or parent = nil or match tag */
-    if(lua_rawget(L, lua_upvalueindex(1)) == LUA_TNIL) {
+    if(lua_rawget(L, lua_upvalueindex(1)) == LUA_TNIL) { /* parent is untagged */
       lua_pushboolean(L, 0);
       return 1;
     }
     lua_rawgeti(L, -1, 1);
-    if(lua_compare(L, 1, -1, LUA_OPEQ)) {
+    if(lua_compare(L, 1, -1, LUA_OPEQ)) { /* match tag */
       lua_pushboolean(L, 1);
       return 1;
     }
     lua_pop(L, 1);
-    if(lua_rawgeti(L, -1, 3) == LUA_TNIL) {
+    if(lua_rawgeti(L, -1, 3) == LUA_TNIL) { /* parent is nil */
       lua_pushboolean(L, 0);
       return 1;
     }
-    if(!lua_isyieldable(lua_tothread(L, -1))) {
+    if(!lua_isyieldable(lua_tothread(L, -1))) { /* parent is main tread */
       lua_pushboolean(L, 0);
       return 1;
     }

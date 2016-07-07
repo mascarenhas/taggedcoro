@@ -1,5 +1,12 @@
 local inner = require("taggedcoro").fortag("inner")
-local outer = require("taggedcoro").fortag("outer") -- tagged and untagged coroutines do not mix!
+local outer
+if ... then
+  print("tagged outer")
+  outer = require("taggedcoro").fortag("outer")
+else
+  print("untagged outer")
+  outer = coroutine
+end
 
 local L = table.pack or function( ... )
   return { n = select( '#', ... ), ... }
