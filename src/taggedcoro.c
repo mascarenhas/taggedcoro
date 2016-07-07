@@ -7,6 +7,11 @@
 #include <string.h>
 #include "compat-5.3.h"
 
+#if defined(LUA_VERSION_NUM) && LUA_VERSION_NUM == 502
+#define lua_isyieldable taggedcoro_isyieldable
+LUA_API int taggedcoro_isyieldable (lua_State *L);
+#endif
+
 /* exports */
 LUAMOD_API int luaopen_taggedcoro (lua_State *L);
 /* end exports */

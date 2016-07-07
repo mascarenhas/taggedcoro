@@ -289,8 +289,6 @@ COMPAT53_API void luaL_requiref (lua_State *L, const char *modname,
  * lua_pushfstring (new formats)
  */
 
-LUA_API int lua_isyieldable (lua_State *L);
-
 #define lua_getglobal(L, n) \
   (lua_getglobal(L, n), lua_type(L, -1))
 

@@ -5,7 +5,7 @@
 
 #include "lstate502.h"
 
-LUA_API int lua_isyieldable (lua_State *L) {
+LUA_API int taggedcoro_isyieldable (lua_State *L) {
   return L->nny == 0;
 }
 
