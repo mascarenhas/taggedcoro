@@ -64,7 +64,7 @@ static int moveyielded (lua_State *L, lua_State *co) {
   return nres; /* return yielded values */
 }
 
-LUA_KFUNCTION(auxcallk); /* forward declaration */
+static int auxcallk(lua_State *L, int status, lua_KContext ctx); /* forward declaration */
 
 LUA_KFUNCTION(untaggedk) {
   /* stack: coroset[co], co, tag, <args> */
