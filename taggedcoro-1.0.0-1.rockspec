@@ -1,7 +1,8 @@
 package = "TaggedCoro"
 version = "1.0.0-1"
 source = {
-  url = "git://github.com/mascarenhas/taggedcoro.git"
+  url = "git://github.com/mascarenhas/taggedcoro.git",
+  tag = "v1.0.0"
 }
 description = {
     summary = "Tagged Coroutines",
