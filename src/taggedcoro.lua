@@ -2,12 +2,27 @@
 -- Pure Lua implementation
 --
 
+local main = "main"
+
 local coroutine = require "coroutine"
 local create = coroutine.create
 local resume = coroutine.resume
 local yield = coroutine.yield
 local status = coroutine.status
 local running = coroutine.running
+do
+  local co, ismain = running()
+  if type(ismain) ~= "boolean" then
+    running = function ()
+      local co = coroutine.running()
+      if co then
+        return co, false
+      else
+        return main, true
+      end
+    end
+  end
+end
 local isyieldable = coroutine.isyieldable or function ()
   -- approximates the behavior of Lua 5.3 isyieldable
   local _, ismain = running()
@@ -183,7 +198,19 @@ local function auxtraceback(start, msg, level)
   local res = { msg }
   res[#res+1] = "stack traceback:"
   while start do
-    res[#res+1] = debug.traceback(start, nil, level+1):match("^[^\n]*\n(.*)$")
+    if start == "main" then -- luajit hack
+      if msg then
+        res[#res+1] = debug.traceback(msg, level+1):match("stack traceback:\n(.*)$")
+      else
+        res[#res+1] = debug.traceback("", level+1):match("stack traceback:\n(.*)$")
+      end
+      break
+    end
+    if msg then
+      res[#res+1] = debug.traceback(start, msg, level+1):match("stack traceback:\n(.*)$")
+    else
+      res[#res+1] = debug.traceback(start, "", level+1):match("stack traceback:\n(.*)$")
+    end
     level = 1
     local mstart = coros[start]
     if not mstart then

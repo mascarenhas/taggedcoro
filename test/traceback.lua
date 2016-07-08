@@ -110,7 +110,6 @@ do
   assert(tc.source(tc.running()) == tc.source(cotwo))
   assert(tc.tag(tc.source(cotwo)) == "one")
   assert(tb:match("tag notfound not found"))
-  print(tb)
   assert(tc.traceback() ~= tb)
 end
 
