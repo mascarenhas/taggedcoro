@@ -45,7 +45,7 @@ do
   assert(tc.tag(tc.source(cotwo)) == "one")
   assert(err:match("tag notfound not found"))
   assert(tc.traceback() == tc.traceback(cotwo))
-  assert(tc.traceback():match("^[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*$"))
+  assert(tc.traceback():match("^[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*"))
 end
 
 do

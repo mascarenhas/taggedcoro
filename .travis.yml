@@ -1,0 +1,37 @@
+# Taken from https://raw.githubusercontent.com/saucisson/lua-coronest/master/.travis.yml
+os: linux
+language: python
+sudo: false
+
+env:
+  - LUA="lua=5.2" LUAV="52" PURE=""
+  - LUA="lua=5.2" LUAV="52" PURE="-purelua"
+  - LUA="lua=5.3" LUAV="53" PURE=""
+  - LUA="lua=5.3" LUAV="53" PURE="-purelua"
+  - LUA="luajit=2.0" LUAV="jit" PURE="-purelua"
+  - LUA="luajit=2.1" LUAV="jit" PURE="-purelua"
+
+before_install:
+  - pip install hererocks
+  - hererocks lua_install -r^ --$LUA # --compat=none
+  - export PATH=$PATH:$PWD/lua_install/bin
+
+install:
+  - luarocks install busted
+  - luarocks install luacov
+  - luarocks install luacov-coveralls
+  - luarocks make taggedcoro$PURE-1.0.0-1.rockspec
+
+script:
+  - busted --verbose --coverage --pattern="^[nt]" test
+  - busted --verbose --coverage --pattern=lua$LUAV test
+
+after_success:
+  - luacov-coveralls --exclude "test" --exclude "samples" --exclude "contrib" --exclude "lua_install"
+
+notifications:
+  recipients:
+    - mascarenhas@gmail.com
+  email:
+    on_success: change
+    on_failure: always

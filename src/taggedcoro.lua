@@ -11,7 +11,7 @@ local yield = coroutine.yield
 local status = coroutine.status
 local running = coroutine.running
 do
-  local co, ismain = running()
+  local _, ismain = running()
   if type(ismain) ~= "boolean" then
     running = function ()
       local co = coroutine.running()
