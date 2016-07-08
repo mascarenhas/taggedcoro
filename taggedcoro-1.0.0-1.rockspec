@@ -1,5 +1,5 @@
 package = "TaggedCoro"
-version = "1.0.0-3"
+version = "1.0.0-1"
 source = {
   url = "git://github.com/mascarenhas/taggedcoro.git",
   tag = "v1.0.0"
