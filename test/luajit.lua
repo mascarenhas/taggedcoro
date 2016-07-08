@@ -176,11 +176,13 @@ assert(ismain)
 
 -- tests for global environment
 
+local G = getfenv(0)
+
 local function foo (a)
   setfenv(0, a)
   coroutine.yield(getfenv(1))
   assert(getfenv(0) == a)
-  assert(getfenv(1) == _G)
+  assert(getfenv(1) == G)
   assert(getfenv(loadstring"") == a)
   local fenv = getfenv(1)
   return fenv
@@ -188,9 +190,9 @@ end
 
 f = coroutine.wrap(foo)
 local a = {}
-assert(f(a) == _G)
+assert(f(a) == G)
 local a,b = pcall(f)
-assert(a and b == _G)
+assert(a and b == G)
 
 
 -- tests for multiple yield/resume arguments
