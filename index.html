@@ -105,19 +105,34 @@ For compatibility with <a href="https://github.com/saucisson/lua-coronest">lua-c
 there is also a <code>make</code> function that is like <code>fortag</code> except it
 generates a fresh tag if none is given.</p>
 
+<p>There is both a C and a pure Lua implementation. The C
+implementation is more efficient, and produces better
+stacktraces, but requires stock Lua 5.2 or higher (it
+will not work with LuaJIT 2). The pure Lua implementation
+should work on LuaJIT 2, Lua 5.2, or Lua 5.3,
+but the <code>isyieldable</code> might give a false positive if
+there are pending unyieldable C calls in the stack on any
+Lua version except Lua 5.3.</p>
+
 <h2>
 <a id="installation" class="anchor" href="#installation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installation</h2>
 
-<p>Get the latest release from <a href="http://luarocks.org">LuaRocks</a>:</p>
+<p>Get the latest release of the C module from <a href="http://luarocks.org">LuaRocks</a>:</p>
 
 <pre><code>luarocks install taggedcoro
 </code></pre>
 
-<p>If you want to install from source, download a tarball/zip of
-this repository or clone it, then run <code>luarocks make</code> on the
-rockspec file of the next planned release.</p>
+<p>Or if you want the pure Lua version:</p>
 
-<p>This module is compatible with both Lua 5.2 and Lua 5.3.</p>
+<pre><code>luarocks install taggedcoro-purelua
+</code></pre>
+
+<p>If you want to install from HEAD, download a tarball/zip of
+this repository or clone it, then run <code>luarocks make</code> on one of
+the provided rockspecs.</p>
+
+<p>The C module is compatible with both Lua 5.2 and Lua 5.3. The
+Lua module is compatible with LuaJIT 2, Lua 5.2, and Lua 5.3.</p>
 
 <h2>
 <a id="module-reference" class="anchor" href="#module-reference" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Module reference</h2>
@@ -226,7 +241,7 @@ of these functions do not have a <code>tag</code> parameter).</p>
 <h3>
 <a id="maketag" class="anchor" href="#maketag" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>make([tag])</h3>
 
-<p>Like <code>fortag</code>, but generated a fresh tag (an new empty table) if none is given.</p>
+<p>Like <code>fortag</code>, but generates a fresh tag (an new empty table) if none is given.</p>
 
 <h3>
 <a id="install" class="anchor" href="#install" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>install()</h3>
