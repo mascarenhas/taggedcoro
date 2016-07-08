@@ -162,10 +162,9 @@ LUA_KFUNCTION(auxcallk) {
 static int auxcall (lua_State *L, lua_State *co, lua_State *yco, int status, int narg) {
   /* stack: coroset[co], co, <args> */
   luaL_checkstack(yco, narg, "too many arguments to resume");
-  if(lua_rawgeti(L, 1, 2) != LUA_TNIL) { /* coroset[co].stacked? */
-    return luaL_error(L, "cannot resume stacked coroutine");
-  } else lua_pop(L, 1);
   lua_xmove(L, yco, narg); /* arguments go to straight to yielder */
+  lua_pushnil(L);
+  lua_rawseti(L, 1, 4); /* clear coroset[co].source */
   lua_pushthread(L);
   lua_rawseti(L, 1, 3); /* coroset[co].parent = <running coro> */
   lua_rawgeti(L, 1, 1); /* push tag */
@@ -203,20 +202,18 @@ static int taggedcoro_cocall (lua_State *L) {
   }
   lua_pushvalue(L, 1); /* copy co to top */
   if(lua_rawget(L, lua_upvalueindex(1)) == LUA_TNIL) { /* coroset[co] */
-    return luaL_argerror(L, 1, "attempt to resume untagged coroutine");
+    return luaL_error(L, "cannot resume untagged coroutine");
   }
-  if(lua_rawgeti(L, -1, 4) == LUA_TNIL) { /* yielder == nil? */
-    lua_pop(L, 1);
-    lua_insert(L, 1); /* move coroset[co] to front */
-    return auxcall(L, co, co, 0, lua_gettop(L) - 2); /* stack: coroset[co], co, <args> */
-  } else {
-    lua_State *yco = lua_tothread(L, -1);
-    lua_pop(L, 1);
-    lua_pushnil(L);
-    lua_rawseti(L, -2, 4); /* clear coroset[co].yielder */
-    lua_insert(L, 1); /* move coroset[co] to front */
-    return auxcall(L, co, yco, LUA_YIELD, lua_gettop(L) - 2); /* stack: coroset[co], co, <args> */
+  if(lua_rawgeti(L, -1, 2) != LUA_TNIL) { /* coroset[co].stacked? */
+    return luaL_error(L, "cannot resume stacked coroutine");
+  } else lua_pop(L, 1);
+  lua_State *yco = co;
+  if(lua_rawgeti(L, -1, 4) != LUA_TNIL) { /* yielder == nil? */
+    yco = lua_tothread(L, -1);
   }
+  lua_pop(L, 1);
+  lua_insert(L, 1); /* move coroset[co] to front */
+  return auxcall(L, co, yco, 0, lua_gettop(L) - 2); /* stack: coroset[co], co, <args> */
 }
 
 LUA_KFUNCTION(resumek) {

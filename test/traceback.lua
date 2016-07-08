@@ -45,6 +45,7 @@ do
   assert(tc.tag(tc.source(cotwo)) == "one")
   assert(err:match("tag notfound not found"))
   assert(tc.traceback() == tc.traceback(cotwo))
+  assert(tc.traceback():match("^[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*$"))
 end
 
 do
@@ -84,7 +85,7 @@ do
   local ok, err = tc.resume(cotwo)
   assert(not ok)
   assert(not tc.source(cotwo))
-  assert(err:match("attempt to resume untagged"))
+  assert(err:match("cannot resume untagged"))
 end
 
 do
@@ -109,6 +110,7 @@ do
   assert(tc.source(tc.running()) == tc.source(cotwo))
   assert(tc.tag(tc.source(cotwo)) == "one")
   assert(tb:match("tag notfound not found"))
+  print(tb)
   assert(tc.traceback() ~= tb)
 end
 

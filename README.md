@@ -71,8 +71,17 @@ For compatibility with [lua-coronest](https://github.com/saucisson/lua-coronest)
 there is also a `make` function that is like `fortag` except it
 generates a fresh tag if none is given.
 
-Install it by running `luarocks make` on the provided
-rockspec file. The `contrib` folder has sample libraries
+There is both a C and a pure Lua implementation. The C
+implementation is more efficient, and produces better
+stacktraces, but requires stock Lua 5.2 or higher (it
+will not work with LuaJIT). The pure Lua implementation
+should work on any Lua version, but the `isyieldable`
+might give a false positive if there are pending unyieldable
+C calls in the stack on any Lua version except Lua 5.3.
+
+Install it by running `luarocks make` on one of the provided
+rockspec files (`taggedcoro` for the C version, `taggedcoro-purelua`
+for the Lua version). The `contrib` folder has sample libraries
 that implement some abstractions on top of coroutines that
 can be freely composed with tagged coroutines. The
 `samples` folder has sample scripts that exercise
