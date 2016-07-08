@@ -229,6 +229,7 @@ LUA_KFUNCTION(resumek) {
 }
 
 static int taggedcoro_coresume (lua_State *L) {
+  getco(L); /* to validate the parameter */
   lua_pushvalue(L, lua_upvalueindex(1));
   lua_pushcclosure(L, taggedcoro_cocall, 1);
   lua_insert(L, 1);

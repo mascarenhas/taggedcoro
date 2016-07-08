@@ -39,6 +39,12 @@ local M = {}
 
 local DEFAULT_TAG = "coroutine"
 
+local function checkco(co, n, f)
+  if type(co) ~= "thread" then
+    error("bad argument #" .. n .. " to ''" .. f .. "' (thead expected)", 3)
+  end
+end
+
 function M.create(tag, f)
   tag = tag or DEFAULT_TAG
   local co = create(f)
@@ -120,6 +126,7 @@ function callk(co, meta, ok, ...)
 end
 
 function M.call(co, ...)
+  checkco(co, "call")
   if M.status(co) ~= "suspended" then
     error("attempt to resume " .. M.status(co) .. " coroutine")
   end
@@ -135,10 +142,12 @@ function M.call(co, ...)
 end
 
 function M.resume(co, ...)
+  checkco(co, "resume")
   return pcall(M.call, co, ...)
 end
 
 function M.status(co)
+  checkco(co, "status")
   if coros[co] and coros[co].stacked then
     return "stacked"
   else
