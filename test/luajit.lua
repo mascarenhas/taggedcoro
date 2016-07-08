@@ -21,14 +21,20 @@ function f(x)
   return a
 end
 
+print'+'
+
 a = f(10)
+
+print'+'
+
 -- force a GC in this level
 local x = {[1] = {}}   -- to detect a GC
 setmetatable(x, {__mode = 'kv'})
 while x[1] do   -- repeat until GC
-  local a = A..A..A..A  -- create garbage
+  collectgarbage()
   A = A+1
 end
+print'+'
 assert(a[1]() == 20+A)
 assert(a[1]() == 30+A)
 assert(a[2]() == 10+A)
@@ -39,6 +45,8 @@ assert(a[3]() == 20+A)
 assert(a[8]() == 10+A)
 assert(getmetatable(x).__mode == 'kv')
 assert(B.g == 19)
+
+print'+'
 
 -- testing closures with 'for' control variable
 a = {}
@@ -118,6 +126,8 @@ pcall(f, 4);
 assert(b('get') == 'xuxu')
 b('set', 10); assert(b('get') == 14)
 
+print'+'
+
 
 local w
 -- testing multi-level closure
@@ -130,6 +140,8 @@ end
 y = f(10)
 w = 1.345
 assert(y(20)(30) == 60+w)
+
+print'+'
 
 -- testing closures x repeat-until
 
@@ -166,11 +178,12 @@ assert(ismain)
 
 local function foo (a)
   setfenv(0, a)
-  coroutine.yield(getfenv())
+  coroutine.yield(getfenv(1))
   assert(getfenv(0) == a)
   assert(getfenv(1) == _G)
   assert(getfenv(loadstring"") == a)
-  return getfenv()
+  local fenv = getfenv(1)
+  return fenv
 end
 
 f = coroutine.wrap(foo)
