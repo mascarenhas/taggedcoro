@@ -74,10 +74,11 @@ generates a fresh tag if none is given.
 There is both a C and a pure Lua implementation. The C
 implementation is more efficient, and produces better
 stacktraces, but requires stock Lua 5.2 or higher (it
-will not work with LuaJIT). The pure Lua implementation
-should work on any Lua version, but the `isyieldable`
-might give a false positive if there are pending unyieldable
-C calls in the stack on any Lua version except Lua 5.3.
+will not work with LuaJIT 2). The pure Lua implementation
+should work on LuaJIT 2, Lua 5.2, or Lua 5.3,
+but the `isyieldable` might give a false positive if
+there are pending unyieldable C calls in the stack on any
+Lua version except Lua 5.3.
 
 Install it by running `luarocks make` on one of the provided
 rockspec files (`taggedcoro` for the C version, `taggedcoro-purelua`
