@@ -266,19 +266,21 @@ function M.make(tag)
   return M.fortag(tag)
 end
 
-function M.install()
-  debug.setmetatable(running(), {
-    __index = {
-      call = M.call,
-      resume = M.resume,
-      parent = M.parent,
-      source = M.source,
-      tag = M.tag,
-      status = M.status
-    },
-    __call = M.call
-  })
-  return M
+if _VERSION ~= "Lua 5.1" then
+  function M.install()
+    debug.setmetatable(running(), {
+      __index = {
+        call = M.call,
+        resume = M.resume,
+        parent = M.parent,
+        source = M.source,
+        tag = M.tag,
+        status = M.status
+      },
+      __call = M.call
+    })
+    return M
+  end
 end
 
 return M

@@ -201,22 +201,24 @@ do
   zero = oldzero
 end
 
-tc = tc.install()
+if _VERSION ~= "Lua 5.1" then
+  tc = tc.install()
 
-do
-  usetc = true
-  local ctwo, cotwo = tc.wrap("two", two)
-  local ok, tb = xpcall(ctwo, function (msg)
-    return tc.traceback(msg, 1)
-  end)
-  assert(not ok)
-  assert(cotwo:tag() == "two")
-  assert(cotwo:parent() == tc.running())
-  assert(cotwo:source():parent() == cotwo)
-  assert(tc.running():source() == cotwo:source())
-  assert(cotwo:source():tag() == "one")
-  assert(tb:match("tag notfound not found"))
-  assert(tc.traceback() ~= tb)
+  do
+    usetc = true
+    local ctwo, cotwo = tc.wrap("two", two)
+    local ok, tb = xpcall(ctwo, function (msg)
+      return tc.traceback(msg, 1)
+    end)
+    assert(not ok)
+    assert(cotwo:tag() == "two")
+    assert(cotwo:parent() == tc.running())
+    assert(cotwo:source():parent() == cotwo)
+    assert(tc.running():source() == cotwo:source())
+    assert(cotwo:source():tag() == "one")
+    assert(tb:match("tag notfound not found"))
+    assert(tc.traceback() ~= tb)
+  end
 end
 
 print()
