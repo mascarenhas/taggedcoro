@@ -93,9 +93,7 @@ function callk(co, meta, ok, ...)
   end
   local mark, source, tag = ...
   if mark ~= MARK then -- untagged yield
-    if not isyieldable() then
-      return callk(co, meta, resume(co, nil, "untagged coroutine not found"))
-    elseif coros[running()] then -- parent is tagged, pass it along with "untagged" tag
+    if coros[running()] then -- parent is tagged, pass it along with "untagged" tag
       meta.stacked = true
       return callkk(co, meta, pcall(yield, MARK, running(), MARK, ...))
     else -- parent is untagged, pass it along as is
@@ -175,7 +173,7 @@ function M.isyieldable(tag)
     return false
   end
   local co = running()
-  while true do
+  while co do
     local meta = coros[co]
     if not meta then
       return false
@@ -187,9 +185,6 @@ function M.isyieldable(tag)
       return false
     end
     co = meta.parent
-    if not co then
-      return false
-    end
   end
 end
 
