@@ -201,6 +201,37 @@ do
   zero = oldzero
 end
 
+do
+  usetc = false
+  local oldzero, cozero = zero
+  zero, cozero = tc.wrap("zero", zero)
+  local ctwo = coroutine.wrap(two)
+  local ok, tb = xpcall(ctwo, function (msg)
+    return tc.traceback(msg, 1)
+  end)
+  assert(ok)
+  assert(tb == "zero")
+  zero = oldzero
+end
+
+do
+  local oldzero = zero
+  zero = function ()
+    tc.yield("two", "zero")
+  end
+  local cone = tc.wrap("one", one)
+  local ctwo = tc.wrap("two", function ()
+    return xpcall(function () assert(false) end, function (msg)
+      local ok, err = pcall(cone)
+      assert(not ok)
+      return err
+    end)
+  end)
+  local _, err = ctwo()
+  assert(err:match("attempt to yield"))
+  zero = oldzero
+end
+
 if _VERSION ~= "Lua 5.1" then
   tc = tc.install()
 

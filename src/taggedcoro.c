@@ -399,10 +399,6 @@ static int taggedcoro_cowrap (lua_State *L) {
       return luaL_error(L, "attempt to wrap an untagged coroutine");
     } else lua_pop(L, 1);
     lua_pushvalue(L, 1);
-    lua_createtable(L, 4, 0); /* meta = { <tag>, <stacked>, <parent>, <yielder> } */
-    lua_pushvalue(L, 1); /* copy tag to top */
-    lua_rawseti(L, -2, 1); /* meta[1] = tag */
-    lua_rawset(L, lua_upvalueindex(1)); /* coroset[co] = meta */
   } else taggedcoro_cocreate(L);
   lua_pushvalue(L, -1);
   lua_pushvalue(L, lua_upvalueindex(1));
@@ -641,8 +637,8 @@ static const luaL_Reg mt_funcs[] = {
 static int taggedcoro_install(lua_State *L) {
   lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
   lua_createtable(L, 0, 2);
-  lua_pushvalue(L, lua_upvalueindex(1)); /* extra metadada for each coroutine */
   luaL_newlibtable(L, mt_funcs); /* __index */
+  lua_pushvalue(L, lua_upvalueindex(1)); /* extra metadada for each coroutine */
   luaL_setfuncs(L, mt_funcs, 1);
   lua_setfield(L, -2, "__index");
   lua_pushcfunction(L, taggedcoro_cocall); /* __call */

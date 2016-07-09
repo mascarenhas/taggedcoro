@@ -111,7 +111,12 @@ function callk(co, meta, ok, ...)
     end
   elseif meta.tag ~= tag then
     if not isyieldable() then
-      return callk(co, meta, resume(co, MARK, "coroutine for tag " .. tostring(tag) .. " not found"))
+      local _, ismain = running()
+      if ismain then
+        return callk(co, meta, resume(co, MARK, "coroutine for tag " .. tostring(tag) .. " not found"))
+      else
+        return callk(co, meta, resume(co, MARK, "attempt to yield across a C-call boundary"))
+      end
     elseif coros[running()] then -- parent is tagged, pass it along
       meta.stacked = true
       return callkk(co, meta, pcall(yield, ...))
