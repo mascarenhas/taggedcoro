@@ -247,7 +247,8 @@ of these functions do not have a <code>tag</code> parameter).</p>
 <p>Like <code>fortag</code>, but generates a fresh tag (an new empty table) if none is given.</p>
 
 <h3>
-<a id="install" class="anchor" href="#install" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>install()</h3>
+<a id="install---lua-52-and-lua-53-only" class="anchor" href="#install---lua-52-and-lua-53-only" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>install() - <em>Lua 5.2 and Lua 5.3 only</em>
+</h3>
 
 <p>Installs a metatable for all coroutines (tagged and untagged, because all coroutines must share a single metatable).
 After installing this metatable every coroutine has <code>resume</code>, <code>call</code>, <code>status</code>, <code>tag</code>, <code>parent</code>, and <code>source</code> as methods.
