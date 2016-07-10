@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/mascarenhas/taggedcoro.svg?branch=master)](https://travis-ci.org/mascarenhas/taggedcoro)
-[![Coveralls](https://img.shields.io/coveralls/mascarenhas/taggedcoro.svg?maxAge=2592000)](https://coveralls.io/github/mascarenhas/taggedcoro)
+[![Coveralls](https://img.shields.io/coveralls/mascarenhas/taggedcoro.svg?maxAge=3600)](https://coveralls.io/github/mascarenhas/taggedcoro)
 
 # [Tagged Coroutines 1.0.0](http://mascarenhas.github.io/taggedcoro/)
 
